@@ -215,9 +215,11 @@ gogo3:{name:"ゴーゴージャグラー3",bbPay:240,regPay:96,settings:{1:[259,
 imex:{name:"アイムジャグラーEX",bbPay:252,regPay:96,settings:{1:[273.1,439.8],2:[269.7,399.6],3:[269.7,331],4:[259,315.1],5:[259,255],6:[255,255]}},
 girls:{name:"ジャグラーガールズSS",bbPay:240,regPay:96,settings:{1:[273.1,381],2:[270.8,350.5],3:[260.1,316.6],4:[250.1,281.3],5:[243.6,270.8],6:[226,252.1]}}
 };
-const $=id=>document.getElementById(id), COIN_YEN=20, GAME_COIN_RATE=50/40;
-let session=null, selectedEvent="BB", pendingCarry=JSON.parse(localStorage.getItem("alpha_pending_carry")||"null");
+const $=id=>document.getElementById(id), COIN_YEN=20, EXCHANGE_YEN=18.3, GAME_COIN_RATE=50/40;
+let session=null, selectedEvent=localStorage.getItem("alpha_selected_event")||"BB", pendingCarry=safeJSON("alpha_pending_carry",null);
 const pct=n=>n.toFixed(1)+"%", yen=n=>Math.round(n).toLocaleString("ja-JP")+"円";
+function safeJSON(key,fallback=null){try{let v=localStorage.getItem(key);return v?JSON.parse(v):fallback}catch(e){console.warn("storage parse failed",key,e);return fallback}}
+
 function toast(s){let t=$("toast");t.textContent=s;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1300)}
 function posterior(m,g,bb,reg){let logs=[];for(let s=1;s<=6;s++){let [bd,rd]=SPECS[m].settings[s],pB=1/bd,pR=1/rd,pN=1-pB-pR,n=Math.max(0,g-bb-reg);logs.push(bb*Math.log(pB)+reg*Math.log(pR)+n*Math.log(pN))}let mx=Math.max(...logs),w=logs.map(x=>Math.exp(x-mx)),sum=w.reduce((a,b)=>a+b,0),p=w.map(x=>x/sum);return{p4plus:(p[3]+p[4]+p[5])*100,probs:p.map(x=>x*100)}}
 function rankInfo(p){
@@ -288,7 +290,7 @@ function renderBalance(){
  $("liveReturnView").textContent=yen(s.ret);
  $("liveProfitView").textContent=(s.profit>=0?"+":"")+yen(s.profit);$("liveProfitView").className="bv "+(s.profit>=0?"good":"bad");
  $("overallProfitView").textContent=(s.overallProfit>=0?"+":"")+yen(s.overallProfit);$("overallProfitView").className="bv "+(s.overallProfit>=0?"good":"bad");
- $("actualInvest").value=s.cashInvest||""
+ if(!$("actualInvest").dataset.manual || $("actualInvest").dataset.manual!=="1")$("actualInvest").value=s.cashInvest||""
 }
 
 function estimateProfitAt(s,eventCount){
@@ -512,7 +514,7 @@ function renderHistory(){
    return `<div class="hrow"><div>#${i+1}</div><div><span class="eventBadge ${cls}">${e.gap}G ${name}</span></div><div class="metrics">P4+ ${pct(e.p4)}　<b>${e.rank}</b><br><span class="muted">${e.totalG}G / BB${e.bb} / REG${e.reg}</span><div class="hProfit">推定 ${Math.round(med)}枚 / 収支 ${profit>=0?"+":""}${yen(profit)}${f.priorProfit?`<br><span class="muted">前台込 ${overall>=0?"+":""}${yen(overall)}</span>`:""}</div></div></div>`
  }).join("")
 }
-function changeInvest(v){let f=finance();f.cashInvest=Math.max(0,f.cashInvest+v);renderBalance();updateCurrentGraph();updateLog();saveTemp()}
+function changeInvest(v){let f=finance();f.cashInvest=Math.max(0,f.cashInvest+v);$("actualInvest").dataset.manual="0";renderBalance();updateCurrentGraph();updateLog();saveTemp()}
 function correctMedals(v){v=+v;if(!Number.isFinite(v)||v<0)return;finance().adjust+=v-rawMedals();$("actualMedals").value="";renderBalance();updateCurrentGraph();updateLog();saveTemp()}
 function carry(mode){
  let med;
@@ -555,9 +557,48 @@ function makeLog(){
 function updateLog(){$("logPreview").textContent=makeLog()}
 function finish(){session.endReason=$("endReason").value;session.memo=$("memo").value;session.actualInvest=$("actualInvest").value?+$("actualInvest").value:null;session.actualReturn=$("actualReturn").value?+$("actualReturn").value:null;session.playDate=$("playDate").value||null;session.startTime4=$("startTime4").value||null;session.endTime4=$("endTime4").value||null;updateLog();saveTemp()}
 function copyLog(){navigator.clipboard?.writeText(makeLog());toast("実戦記録をコピーしました")}
-function saveTemp(){if(session)localStorage.setItem("alpha_current_session",JSON.stringify(session))}
-function restoreTemp(){let x=JSON.parse(localStorage.getItem("alpha_current_session")||"null");if(!x)return;session=x;$("machine").value=session.machine;$("startG").value=session.start.g;$("startBB").value=session.start.bb;$("startREG").value=session.start.reg;$("userCap").value=session.start.userCap||"";$("endReason").value=session.endReason||"任意終了";$("memo").value=session.memo||"";$("playDate").value=session.playDate||"";$("startTime4").value=session.startTime4||"";$("endTime4").value=session.endTime4||"";showSession()}
-function resetSession(){session=null;localStorage.removeItem("alpha_current_session");$("initialResultBody").classList.remove("collapsedBody");$("toggleInitialBtn").textContent="折りたたむ";$("endCardBody").classList.add("collapsedBody");$("toggleEndBtn").textContent="開く";["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.add("hidden"));["compact","startG","startBB","startREG","userCap","eventG","actualInvest","actualReturn","playDate","startTime4","endTime4","memo"].forEach(x=>$(x).value="");window.scrollTo({top:0,behavior:"smooth"})}
+function saveTemp(){
+ if(!session)return;
+ session.endReason=$("endReason")?.value||session.endReason||"任意終了";
+ session.memo=$("memo")?.value??session.memo??"";
+ session.playDate=$("playDate")?.value||null;
+ session.startTime4=$("startTime4")?.value||null;
+ session.endTime4=$("endTime4")?.value||null;
+ session.actualInvest=$("actualInvest")?.value?+$("actualInvest").value:null;
+ session.actualReturn=$("actualReturn")?.value?+$("actualReturn").value:null;
+ try{localStorage.setItem("alpha_current_session",JSON.stringify(session));localStorage.setItem("alpha_selected_event",selectedEvent)}catch(e){console.warn("一時保存に失敗",e)}
+}
+function restoreTemp(){
+ let x=safeJSON("alpha_current_session",null);
+ if(!x)return;
+ try{
+   session=x;
+   session.events=Array.isArray(session.events)?session.events:[];
+   session.finance=session.finance||{cashInvest:0,carryIn:0,adjust:0,carryMode:null,priorProfit:0,priorCashInvest:0};
+   if(session.finance.priorProfit==null)session.finance.priorProfit=0;
+   if(session.finance.priorCashInvest==null)session.finance.priorCashInvest=0;
+   $("machine").value=session.machine||"my5";
+   $("startG").value=session.start?.g||"";
+   $("startBB").value=session.start?.bb??"";
+   $("startREG").value=session.start?.reg??"";
+   $("userCap").value=session.start?.userCap||"";
+   $("endReason").value=session.endReason||"任意終了";
+   $("memo").value=session.memo||"";
+   $("playDate").value=session.playDate||"";
+   $("startTime4").value=session.startTime4||"";
+   $("endTime4").value=session.endTime4||"";
+   $("actualInvest").value=session.actualInvest??session.finance.cashInvest??"";
+   $("actualReturn").value=session.actualReturn??"";
+   document.querySelectorAll(".eventBtn").forEach(b=>b.classList.toggle("active",b.dataset.event===selectedEvent));
+   showSession();
+ }catch(e){
+   console.error("一時データ復元に失敗",e);
+   localStorage.removeItem("alpha_current_session");
+   session=null;
+   toast("一時データの復元に失敗したため初期化しました")
+ }
+}
+function resetSession(){session=null;localStorage.removeItem("alpha_current_session");selectedEvent="BB";localStorage.setItem("alpha_selected_event","BB");document.querySelectorAll(".eventBtn").forEach(b=>b.classList.toggle("active",b.dataset.event==="BB"));$("initialResultBody").classList.remove("collapsedBody");$("toggleInitialBtn").textContent="折りたたむ";$("endCardBody").classList.add("collapsedBody");$("toggleEndBtn").textContent="開く";["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.add("hidden"));["compact","startG","startBB","startREG","userCap","eventG","actualInvest","actualReturn","playDate","startTime4","endTime4","memo"].forEach(x=>$(x).value="");window.scrollTo({top:0,behavior:"smooth"})}
 function saveHistory(){
  if(!session)return;
  let h=JSON.parse(localStorage.getItem("alpha_history")||"[]"),log=makeLog(),m=moneyState(),actualReturn=$("actualReturn").value.trim();
@@ -632,15 +673,17 @@ function saveEditedHistory(){
   renderSaved();
   toast("履歴を修正しました")
 }
-["startTime4","endTime4"].forEach(id=>$(id).addEventListener("input",()=>{$(id).value=$(id).value.replace(/\D/g,"").slice(0,4);updateLog()}));
-$("playDate").addEventListener("input",updateLog);
+["startTime4","endTime4"].forEach(id=>$(id).addEventListener("input",()=>{$(id).value=$(id).value.replace(/\D/g,"").slice(0,4);updateLog();saveTemp()}));
+$("playDate").addEventListener("input",()=>{updateLog();saveTemp()});
 $("compact").addEventListener("input",()=>{let v=$("compact").value.replace(/\D/g,"").slice(0,8);$("compact").value=v;if(v.length===8){$("startG").value=+v.slice(0,4);$("startBB").value=+v.slice(4,6);$("startREG").value=+v.slice(6)}})
 $("judgeBtn").onclick=begin;$("recordBtn").onclick=addEvent;$("undoBtn").onclick=undo;$("invest1000Btn").onclick=()=>changeInvest(1000);$("investMinus1000Btn").onclick=()=>changeInvest(-1000);$("setMedalsBtn").onclick=()=>correctMedals($("actualMedals").value);$("zeroMedalsBtn").onclick=()=>correctMedals(0);
 $("carryExactBtn").onclick=()=>carry("exact");$("carryApproxBtn").onclick=()=>carry("approx");$("carryAutoBtn").onclick=()=>carry("auto");$("cancelCarryBtn").onclick=()=>{pendingCarry=null;localStorage.removeItem("alpha_pending_carry");renderPending()};
 $("finishBtn").onclick=finish;$("copyBtn").onclick=copyLog;$("saveHistoryBtn").onclick=saveHistory;$("newBtn").onclick=resetSession;$("clearHistoryBtn").onclick=()=>{if(confirm("保存済み履歴を全削除しますか？")){localStorage.removeItem("alpha_history");renderSaved()}};
-["endReason","actualInvest","actualReturn","memo"].forEach(id=>$(id).addEventListener("input",updateLog));
+["endReason","actualReturn","memo"].forEach(id=>$(id).addEventListener("input",()=>{updateLog();saveTemp()}));
+$("actualInvest").addEventListener("input",()=>{$("actualInvest").dataset.manual="1";updateLog();saveTemp()});
 document.querySelectorAll(".eventBtn").forEach(btn=>btn.onclick=()=>{
  selectedEvent=btn.dataset.event;
+ localStorage.setItem("alpha_selected_event",selectedEvent);
  document.querySelectorAll(".eventBtn").forEach(b=>b.classList.toggle("active",b===btn));
  $("eventG").focus();
 });
