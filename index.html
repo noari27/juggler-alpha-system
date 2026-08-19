@@ -76,6 +76,10 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 .dayDetailMachine{font-weight:900}.dayDetailRank{font-size:12px;color:var(--muted);margin-top:4px}
 .dayDetailProfit{font-weight:900;font-size:16px;white-space:nowrap}
 
+
+.timeGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+@media(max-width:480px){.timeGrid{grid-template-columns:1fr 1fr}}
+
 </style>
 </head>
 <body>
@@ -129,6 +133,13 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 <div class="card hidden" id="endCard"><div class="card-title"><h2>③ 実戦終了・コピー</h2><button class="tiny collapseBtn" id="toggleEndBtn">開く</button></div>
 <div id="endCardBody" class="collapsedBody"><div class="grid2"><div><label>終了理由</label><select id="endReason"><option>P4+低下</option><option>投資上限</option><option>時間切れ</option><option>閉店</option><option>台移動</option><option selected>任意終了</option></select></div><div><label>実投資額（任意）</label><input id="actualInvest" type="number" step="1000"></div></div>
 <div style="margin-top:10px"><label>回収額（任意）</label><input id="actualReturn" type="number" step="100"></div>
+<div class="timeGrid">
+<div><label>実戦日（任意）</label><input id="playDate" type="date"></div>
+<div></div>
+<div><label>開始時刻（任意・4桁）</label><input id="startTime4" inputmode="numeric" maxlength="4" placeholder="例：2214"></div>
+<div><label>終了時刻（任意・4桁）</label><input id="endTime4" inputmode="numeric" maxlength="4" placeholder="例：2358"></div>
+</div>
+<div class="note" style="margin-top:7px">2214 → 22:14 として保存します。実戦日が未入力なら保存時の日付を使用します。</div>
 <div style="margin-top:10px"><label>メモ（任意）</label><input id="memo"></div>
 <button class="secondary big-action" id="finishBtn">終了内容を反映</button>
 <div style="margin-top:12px"><label>コピーされる実戦記録</label><div id="logPreview" class="logbox"></div></div>
@@ -375,7 +386,7 @@ function copyText(text,msg="コピーしました"){navigator.clipboard?.writeTe
 function exportAllHistory(){
  let h=JSON.parse(localStorage.getItem("alpha_history")||"[]");
  if(!h.length)return alert("保存履歴がありません");
- let txt=h.slice().reverse().map(x=>`===== ${new Date(x.at).toLocaleString("ja-JP")} =====\n${x.log}`).join("\n\n");
+ let txt=h.slice().reverse().map(x=>`===== ${formatDateTimeNoSec(x.at)} =====\n${x.log}`).join("\n\n");
  const blob=new Blob([txt],{type:"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
  a.href=url;a.download=`alpha_history_${new Date().toISOString().slice(0,10)}.txt`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)
 }
@@ -420,7 +431,7 @@ function showDayDetail(y,m,d){
  $("dayDetailList").innerHTML=items.length?items.sort((a,b)=>a.at-b.at).map(x=>{
    let s=parseLogSummary(x.log),tp=parseTableProfit(x.log),cp=historyChainProfit(x);
    let move=(x.log.match(/^移動メダル：(.+)$/m)||[])[1];
-   return `<div class="dayDetailItem"><div class="dayDetailTop"><div><div class="dayDetailMachine">${new Date(x.at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}　${s.machine}</div><div class="dayDetailRank">${s.sr||"—"} ${s.sp?`${s.sp}%`:""} → ${s.fr||"—"} ${s.fp?`${s.fp}%`:""}${move?`<br>移動 ${move}`:""}</div></div><div class="dayDetailProfit ${tp!=null&&tp>=0?"good":"bad"}">${tp==null?"—":`${tp>=0?"+":""}${Math.round(tp).toLocaleString("ja-JP")}円`}</div></div>${Number.isFinite(cp)?`<div class="note" style="margin-top:6px">この時点の累計 ${cp>=0?"+":""}${Math.round(cp).toLocaleString("ja-JP")}円</div>`:""}</div>`
+   return `<div class="dayDetailItem"><div class="dayDetailTop"><div><div class="dayDetailMachine">${formatDateTimeNoSec(x.at).slice(11)}　${s.machine}</div><div class="dayDetailRank">${s.sr||"—"} ${s.sp?`${s.sp}%`:""} → ${s.fr||"—"} ${s.fp?`${s.fp}%`:""}${move?`<br>移動 ${move}`:""}</div></div><div class="dayDetailProfit ${tp!=null&&tp>=0?"good":"bad"}">${tp==null?"—":`${tp>=0?"+":""}${Math.round(tp).toLocaleString("ja-JP")}円`}</div></div>${Number.isFinite(cp)?`<div class="note" style="margin-top:6px">この時点の累計 ${cp>=0?"+":""}${Math.round(cp).toLocaleString("ja-JP")}円</div>`:""}</div>`
  }).join(""):'<div class="note">保存履歴はありません。</div>';
  $("dayDetailModal").classList.remove("hidden")
 }
@@ -442,6 +453,26 @@ function renderCalendar(){
  out+='</div>';$("calendarGrid").innerHTML=out
 }
 
+function normalizeTime4(v){
+ v=String(v||"").replace(/\D/g,"").slice(0,4);
+ if(v.length!==4)return null;
+ let h=+v.slice(0,2),m=+v.slice(2);
+ if(h>23||m>59)return null;
+ return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`
+}
+function formatDateTimeNoSec(ts){
+ let d=new Date(ts);
+ return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`
+}
+function sessionTimestamp(kind){
+ let dateVal=$("playDate")?.value||"", timeVal=kind==="start"?$("startTime4")?.value:$("endTime4")?.value;
+ let t=normalizeTime4(timeVal);
+ if(dateVal&&t){
+   let [y,m,d]=dateVal.split("-").map(Number),[hh,mm]=t.split(":").map(Number);
+   return new Date(y,m-1,d,hh,mm,0,0).getTime()
+ }
+ return kind==="start"?(session?.startedAt||Date.now()):Date.now()
+}
 function newChainId(){return "chain-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)}
 function begin(){
  let m=$("machine").value,g=+$("startG").value,bb=+$("startBB").value,reg=+$("startREG").value,cap=+$("userCap").value||0;
@@ -450,6 +481,7 @@ function begin(){
  session={
    machine:m,
    chainId:carry?.chainId||newChainId(),
+   startedAt:Date.now(),
    start:{g,bb,reg,p4:p.p4plus,rank:r.label,recInvest:cap>0?Math.min(cap,r.invest):r.invest,userCap:cap},
    current:{g,bb,reg},events:[],
    finance:{cashInvest:0,carryIn:carry?.medals||0,adjust:0,carryMode:carry?.mode||null,priorProfit:carry?.chainProfit||0,priorCashInvest:carry?.totalCashInvest||0},
@@ -499,7 +531,8 @@ function renderPending(){let b=$("pendingCarry");if(!pendingCarry){b.classList.a
 function makeLog(){
  if(!session)return"";
  let s=session.start,c=session.current,p=posterior(session.machine,c.g,c.bb,c.reg).p4plus,r=rankInfo(p),m=moneyState();
- let lines=["【α実戦記録】","",`機種：${SPECS[session.machine].name}`,`開始データ：${s.g}G BB${s.bb} REG${s.reg}`,`開始P4+：${pct(s.p4)}`,`開始ランク：${s.rank}`,`推奨投資額：${yen(s.recInvest)}`];
+ let startTs=sessionTimestamp("start"),endTs=sessionTimestamp("end"),startLabel=formatDateTimeNoSec(startTs),endLabel=formatDateTimeNoSec(endTs);
+ let lines=["【α実戦記録】","",`機種：${SPECS[session.machine].name}`,`実戦開始：${startLabel}`,`実戦終了：${endLabel}`,`開始データ：${s.g}G BB${s.bb} REG${s.reg}`,`開始P4+：${pct(s.p4)}`,`開始ランク：${s.rank}`,`推奨投資額：${yen(s.recInvest)}`];
  if(m.carryIn>0)lines.push(`持込メダル：${m.carryMode==="exact"?"":"約"}${Math.round(m.carryIn)}枚`,`前台までの現金投資：${yen(m.priorCashInvest||0)}`);
  lines.push("","【実戦】");
  if(!session.events.length)lines.push("記録なし");else session.events.forEach(e=>lines.push(`${String(e.gap).padStart(3," ")}G ${(e.type==="HAMA"?"ハマり":e.type).padEnd(4," ")}  P4+ ${pct(e.p4).padStart(5," ")}  ${e.rank}`));
@@ -520,11 +553,11 @@ function makeLog(){
  return lines.join("\n")
 }
 function updateLog(){$("logPreview").textContent=makeLog()}
-function finish(){session.endReason=$("endReason").value;session.memo=$("memo").value;session.actualInvest=$("actualInvest").value?+$("actualInvest").value:null;session.actualReturn=$("actualReturn").value?+$("actualReturn").value:null;updateLog();saveTemp()}
+function finish(){session.endReason=$("endReason").value;session.memo=$("memo").value;session.actualInvest=$("actualInvest").value?+$("actualInvest").value:null;session.actualReturn=$("actualReturn").value?+$("actualReturn").value:null;session.playDate=$("playDate").value||null;session.startTime4=$("startTime4").value||null;session.endTime4=$("endTime4").value||null;updateLog();saveTemp()}
 function copyLog(){navigator.clipboard?.writeText(makeLog());toast("実戦記録をコピーしました")}
 function saveTemp(){if(session)localStorage.setItem("alpha_current_session",JSON.stringify(session))}
-function restoreTemp(){let x=JSON.parse(localStorage.getItem("alpha_current_session")||"null");if(!x)return;session=x;$("machine").value=session.machine;$("startG").value=session.start.g;$("startBB").value=session.start.bb;$("startREG").value=session.start.reg;$("userCap").value=session.start.userCap||"";$("endReason").value=session.endReason||"任意終了";$("memo").value=session.memo||"";showSession()}
-function resetSession(){session=null;localStorage.removeItem("alpha_current_session");$("initialResultBody").classList.remove("collapsedBody");$("toggleInitialBtn").textContent="折りたたむ";$("endCardBody").classList.add("collapsedBody");$("toggleEndBtn").textContent="開く";["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.add("hidden"));["compact","startG","startBB","startREG","userCap","eventG","actualInvest","actualReturn","memo"].forEach(x=>$(x).value="");window.scrollTo({top:0,behavior:"smooth"})}
+function restoreTemp(){let x=JSON.parse(localStorage.getItem("alpha_current_session")||"null");if(!x)return;session=x;$("machine").value=session.machine;$("startG").value=session.start.g;$("startBB").value=session.start.bb;$("startREG").value=session.start.reg;$("userCap").value=session.start.userCap||"";$("endReason").value=session.endReason||"任意終了";$("memo").value=session.memo||"";$("playDate").value=session.playDate||"";$("startTime4").value=session.startTime4||"";$("endTime4").value=session.endTime4||"";showSession()}
+function resetSession(){session=null;localStorage.removeItem("alpha_current_session");$("initialResultBody").classList.remove("collapsedBody");$("toggleInitialBtn").textContent="折りたたむ";$("endCardBody").classList.add("collapsedBody");$("toggleEndBtn").textContent="開く";["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.add("hidden"));["compact","startG","startBB","startREG","userCap","eventG","actualInvest","actualReturn","playDate","startTime4","endTime4","memo"].forEach(x=>$(x).value="");window.scrollTo({top:0,behavior:"smooth"})}
 function saveHistory(){
  if(!session)return;
  let h=JSON.parse(localStorage.getItem("alpha_history")||"[]"),log=makeLog(),m=moneyState(),actualReturn=$("actualReturn").value.trim();
@@ -535,7 +568,7 @@ function saveHistory(){
  }else if(session.moveMedals!=null){
    chainProfit=session.moveMedals*COIN_YEN-m.totalCashInvest
  }else chainProfit=m.overallProfit;
- h.unshift({at:Date.now(),log,points:graphPointsFromSession(session),chainId:session.chainId||newChainId(),chainProfit});
+ h.unshift({at:sessionTimestamp("end"),startedAt:sessionTimestamp("start"),log,points:graphPointsFromSession(session),chainId:session.chainId||newChainId(),chainProfit});
  localStorage.setItem("alpha_history",JSON.stringify(h.slice(0,200)));renderSaved();toast("履歴に保存しました")
 }
 let editingHistoryIndex=null;
@@ -560,9 +593,13 @@ function renderSaved(){
  el.innerHTML=h.length?h.map((x,i)=>{
    let s=parseLogSummary(x.log),money=s.pr===null?"台収支 —":`台収支 <span class="${s.pr>=0?"good":"bad"}">${s.pr>=0?"+":""}${s.pr.toLocaleString("ja-JP")}円</span>`;
    let cum=s.cumulative===null?"":` / 累計 <span class="${s.cumulative>=0?"good":"bad"}">${s.cumulative>=0?"+":""}${s.cumulative.toLocaleString("ja-JP")}円</span>`;
-   let movement=s.move?`<div class="savedMoney">移動 ${s.move} / ${money}${cum}</div>`:`<div class="savedMoney">投資 ${s.ai?Number(s.ai.replace(/,/g,"")).toLocaleString("ja-JP")+"円":"—"} / 回収 ${s.ar?Number(s.ar.replace(/,/g,"")).toLocaleString("ja-JP")+"円":"—"} / ${money}${cum}</div>`;
+   let estRet=(x.log.match(/^移動時推定回収額：\s*([\d,]+)円/m)||[])[1];
+   let moveCum=parseSignedYenLine(x.log,"移動時累計推定収支");
+   let movement=s.move
+    ?`<div class="savedMoney">投資 ${s.ai?Number(s.ai.replace(/,/g,"")).toLocaleString("ja-JP")+"円":"0円"} / 移動 ${s.move} / 推定回収 ${estRet?Number(estRet.replace(/,/g,"")).toLocaleString("ja-JP")+"円":"—"} / 推定累計 <span class="${moveCum!=null&&moveCum>=0?"good":"bad"}">${moveCum==null?"—":`${moveCum>=0?"+":""}${moveCum.toLocaleString("ja-JP")}円`}</span></div>`
+    :`<div class="savedMoney">投資 ${s.ai?Number(s.ai.replace(/,/g,"")).toLocaleString("ja-JP")+"円":"—"} / 回収 ${s.ar?Number(s.ar.replace(/,/g,"")).toLocaleString("ja-JP")+"円":"—"} / ${money}${cum}</div>`;
    return `<div class="savedItem"><div class="savedMain">
-    <div class="savedTitle">${new Date(x.at).toLocaleString("ja-JP")}　${s.machine}</div>
+    <div class="savedTitle">${formatDateTimeNoSec(x.at)}　${s.machine}</div>
     <div class="savedRank">${s.sr||"—"} ${s.sp?`${s.sp}%`:""} → ${s.fr||"—"} ${s.fp?`${s.fp}%`:""}</div>
     ${movement}
     <div class="savedActions">
@@ -595,6 +632,8 @@ function saveEditedHistory(){
   renderSaved();
   toast("履歴を修正しました")
 }
+["startTime4","endTime4"].forEach(id=>$(id).addEventListener("input",()=>{$(id).value=$(id).value.replace(/\D/g,"").slice(0,4);updateLog()}));
+$("playDate").addEventListener("input",updateLog);
 $("compact").addEventListener("input",()=>{let v=$("compact").value.replace(/\D/g,"").slice(0,8);$("compact").value=v;if(v.length===8){$("startG").value=+v.slice(0,4);$("startBB").value=+v.slice(4,6);$("startREG").value=+v.slice(6)}})
 $("judgeBtn").onclick=begin;$("recordBtn").onclick=addEvent;$("undoBtn").onclick=undo;$("invest1000Btn").onclick=()=>changeInvest(1000);$("investMinus1000Btn").onclick=()=>changeInvest(-1000);$("setMedalsBtn").onclick=()=>correctMedals($("actualMedals").value);$("zeroMedalsBtn").onclick=()=>correctMedals(0);
 $("carryExactBtn").onclick=()=>carry("exact");$("carryApproxBtn").onclick=()=>carry("approx");$("carryAutoBtn").onclick=()=>carry("auto");$("cancelCarryBtn").onclick=()=>{pendingCarry=null;localStorage.removeItem("alpha_pending_carry");renderPending()};
