@@ -278,7 +278,7 @@ function rankCard(g,bb,reg,m,cap){
 }
 function finance(){if(!session.finance)session.finance={cashInvest:0,carryIn:0,adjust:0,carryMode:null,priorProfit:0,priorCashInvest:0};if(session.finance.priorProfit==null)session.finance.priorProfit=0;if(session.finance.priorCashInvest==null)session.finance.priorCashInvest=0;return session.finance}
 function rawMedals(){if(!session)return 0;let f=finance(),played=session.current.g-session.start.g,m=f.carryIn+f.cashInvest/COIN_YEN-played*GAME_COIN_RATE+f.adjust;for(const e of session.events){if(e.type==="BB")m+=SPECS[session.machine].bbPay;if(e.type==="REG")m+=SPECS[session.machine].regPay}return Math.max(0,m)}
-function moneyState(){let f=finance(),med=rawMedals(),ret=med*COIN_YEN,profit=ret-f.cashInvest-f.carryIn*COIN_YEN,totalCashInvest=(f.priorCashInvest||0)+f.cashInvest,overallProfit=ret-totalCashInvest;return{...f,med,ret,profit,totalCashInvest,overallProfit}}
+function moneyState(){let f=finance(),med=rawMedals(),ret=med*EXCHANGE_YEN,profit=ret-f.cashInvest-f.carryIn*EXCHANGE_YEN,totalCashInvest=(f.priorCashInvest||0)+f.cashInvest,overallProfit=ret-totalCashInvest;return{...f,med,ret,profit,totalCashInvest,overallProfit}}
 function renderBalance(){
  if(!session)return;
  let s=moneyState();
@@ -300,7 +300,7 @@ function estimateProfitAt(s,eventCount){
    if(e.type==="REG")medals+=SPECS[s.machine].regPay
  }
  medals=Math.max(0,medals);
- return medals*COIN_YEN-f.cashInvest-f.carryIn*COIN_YEN
+ return medals*EXCHANGE_YEN-f.cashInvest-f.carryIn*EXCHANGE_YEN
 }
 function graphPointsFromSession(s){
  let pts=[{label:"開始",p4:s.start.p4,g:s.start.g,profit:estimateProfitAt(s,0)}];
@@ -309,15 +309,15 @@ function graphPointsFromSession(s){
 }
 function graphPointsFromLog(log){
  let pts=[],sm=log.match(/開始P4\+：\s*([0-9.]+)%/), startCarry=(log.match(/^持込メダル：(?:約)?\s*([\d,]+)枚/m)||[])[1];
- let carry=startCarry?+startCarry.replace(/,/g,""):0, runningProfit=-carry*COIN_YEN;
+ let carry=startCarry?+startCarry.replace(/,/g,""):0, runningProfit=-carry*EXCHANGE_YEN;
  if(sm)pts.push({label:"開始",p4:+sm[1],profit:runningProfit});
  let lines=log.split(/\r?\n/), machineName=(log.match(/^機種：(.+)$/m)||[])[1]||"", spec=Object.values(SPECS).find(x=>x.name===machineName), bbPay=spec?.bbPay||240, regPay=spec?.regPay||96;
  for(const line of lines){
    let m=line.match(/^\s*(\d+)G\s+(BB|REG|ハマり).*?P4\+\s*([0-9.]+)%/);
    if(m){
-     let gap=+m[1];runningProfit-=gap*GAME_COIN_RATE*COIN_YEN;
-     if(m[2]==="BB")runningProfit+=bbPay*COIN_YEN;
-     if(m[2]==="REG")runningProfit+=regPay*COIN_YEN;
+     let gap=+m[1];runningProfit-=gap*GAME_COIN_RATE*EXCHANGE_YEN;
+     if(m[2]==="BB")runningProfit+=bbPay*EXCHANGE_YEN;
+     if(m[2]==="REG")runningProfit+=regPay*EXCHANGE_YEN;
      pts.push({label:m[2]+" "+gap+"G",p4:+m[3],profit:runningProfit})
    }
  }
@@ -507,7 +507,7 @@ function renderHistory(){
  if(!session.events.length){el.innerHTML='<div class="note">まだ実戦入力はありません。</div>';return}
  let f=finance();
  el.innerHTML=session.events.map((e,i)=>{
-   let med=medalsAtEventCount(i+1), profit=med*COIN_YEN-f.cashInvest-f.carryIn*COIN_YEN, overall=(f.priorProfit||0)+profit;
+   let med=medalsAtEventCount(i+1), profit=med*EXCHANGE_YEN-f.cashInvest-f.carryIn*EXCHANGE_YEN, overall=med*EXCHANGE_YEN-((f.priorCashInvest||0)+f.cashInvest);
    let cls=e.type==="BB"?"bb":e.type==="REG"?"reg":"hama",name=e.type==="HAMA"?"ハマり":e.type;
    return `<div class="hrow"><div>#${i+1}</div><div><span class="eventBadge ${cls}">${e.gap}G ${name}</span></div><div class="metrics">P4+ ${pct(e.p4)}　<b>${e.rank}</b><br><span class="muted">${e.totalG}G / BB${e.bb} / REG${e.reg}</span><div class="hProfit">推定 ${Math.round(med)}枚 / 収支 ${profit>=0?"+":""}${yen(profit)}${f.priorProfit?`<br><span class="muted">前台込 ${overall>=0?"+":""}${yen(overall)}</span>`:""}</div></div></div>`
  }).join("")
@@ -519,7 +519,7 @@ function carry(mode){
  if(mode==="exact"){let v=prompt("現在の持ちメダル枚数を入力してください");if(v===null)return;med=Math.max(0,+v||0)}
  else if(mode==="approx"){let base=Math.round(rawMedals()/50)*50;let v=prompt("概算枚数（50枚刻み）",String(base));if(v===null)return;med=Math.max(0,Math.round((+v||0)/50)*50)}
  else med=Math.round(rawMedals());
- let f=finance(),tableProfitAtMove=med*COIN_YEN-f.cashInvest-f.carryIn*COIN_YEN,totalCashInvest=(f.priorCashInvest||0)+f.cashInvest,chainProfit=med*COIN_YEN-totalCashInvest;
+ let f=finance(),tableProfitAtMove=med*EXCHANGE_YEN-f.cashInvest-f.carryIn*EXCHANGE_YEN,totalCashInvest=(f.priorCashInvest||0)+f.cashInvest,chainProfit=med*EXCHANGE_YEN-totalCashInvest;
  session.moveMedals=med;session.moveMode=mode;
  pendingCarry={medals:med,mode,from:SPECS[session.machine].name,at:Date.now(),chainProfit,totalCashInvest,chainId:session.chainId};
  localStorage.setItem("alpha_pending_carry",JSON.stringify(pendingCarry));
@@ -536,16 +536,16 @@ function makeLog(){
  if(m.carryIn>0)lines.push(`持込メダル：${m.carryMode==="exact"?"":"約"}${Math.round(m.carryIn)}枚`,`前台までの現金投資：${yen(m.priorCashInvest||0)}`);
  lines.push("","【実戦】");
  if(!session.events.length)lines.push("記録なし");else session.events.forEach(e=>lines.push(`${String(e.gap).padStart(3," ")}G ${(e.type==="HAMA"?"ハマり":e.type).padEnd(4," ")}  P4+ ${pct(e.p4).padStart(5," ")}  ${e.rank}`));
- lines.push("","【推定収支】",`現金投資：${yen(m.cashInvest)}`,`推定持ちメダル：${Math.round(m.med)}枚`,`推定回収額：${yen(m.ret)}`,`台単体推定収支：${m.profit>=0?"+":""}${yen(m.profit)}`,`累計現金投資：${yen(m.totalCashInvest)}`,`前台含む推定収支：${m.overallProfit>=0?"+":""}${yen(m.overallProfit)}`);
+ lines.push("","【推定収支】",`換金換算：1枚18.3円`,`現金投資：${yen(m.cashInvest)}`,`推定持ちメダル：${Math.round(m.med)}枚`,`推定回収額：${yen(m.ret)}`,`台単体推定収支：${m.profit>=0?"+":""}${yen(m.profit)}`,`累計現金投資：${yen(m.totalCashInvest)}`,`前台含む推定収支：${m.overallProfit>=0?"+":""}${yen(m.overallProfit)}`);
  if(session.moveMedals!=null){
-   let mv=session.moveMedals,mvRet=mv*COIN_YEN,tableMoveProfit=mvRet-m.cashInvest-m.carryIn*COIN_YEN,chainMoveProfit=mvRet-m.totalCashInvest;
+   let mv=session.moveMedals,mvRet=mv*EXCHANGE_YEN,tableMoveProfit=mvRet-m.cashInvest-m.carryIn*EXCHANGE_YEN,chainMoveProfit=mvRet-m.totalCashInvest;
    lines.push(`移動メダル：${session.moveMode==="exact"?"推定":"約"}${Math.round(mv)}枚`,`移動時推定回収額：${yen(mvRet)}`,`移動時台単体推定収支：${tableMoveProfit>=0?"+":""}${yen(tableMoveProfit)}`,`移動時累計推定収支：${chainMoveProfit>=0?"+":""}${yen(chainMoveProfit)}`)
  }
  lines.push("","【終了】",`終了データ：${c.g}G BB${c.bb} REG${c.reg}`,`最終P4+：${pct(p)}`,`最終ランク：${r.label}`);
  let ai=$("actualInvest").value.trim(),ar=$("actualReturn").value.trim(),currentActualInvest=ai?+ai:m.cashInvest;
  if(ai)lines.push(`実投資：${yen(+ai)}`);
  if(ar){
-   let finalReturn=+ar,totalActualInvest=(m.priorCashInvest||0)+currentActualInvest,tableActualProfit=finalReturn-currentActualInvest-m.carryIn*COIN_YEN,cumulativeProfit=finalReturn-totalActualInvest;
+   let finalReturn=+ar,totalActualInvest=(m.priorCashInvest||0)+currentActualInvest,tableActualProfit=finalReturn-currentActualInvest-m.carryIn*EXCHANGE_YEN,cumulativeProfit=finalReturn-totalActualInvest;
    lines.push(`回収：${yen(finalReturn)}`,`台単体収支：${tableActualProfit>=0?"+":""}${yen(tableActualProfit)}`,`累計現金投資：${yen(totalActualInvest)}`,`累計収支：${cumulativeProfit>=0?"+":""}${yen(cumulativeProfit)}`)
  }
  lines.push(`終了理由：${$("endReason").value}`);
@@ -566,7 +566,7 @@ function saveHistory(){
    let currentActualInvest=$("actualInvest").value.trim()?+$("actualInvest").value:m.cashInvest;
    chainProfit=+$("actualReturn").value-((m.priorCashInvest||0)+currentActualInvest)
  }else if(session.moveMedals!=null){
-   chainProfit=session.moveMedals*COIN_YEN-m.totalCashInvest
+   chainProfit=session.moveMedals*EXCHANGE_YEN-m.totalCashInvest
  }else chainProfit=m.overallProfit;
  h.unshift({at:sessionTimestamp("end"),startedAt:sessionTimestamp("start"),log,points:graphPointsFromSession(session),chainId:session.chainId||newChainId(),chainProfit});
  localStorage.setItem("alpha_history",JSON.stringify(h.slice(0,200)));renderSaved();toast("履歴に保存しました")
