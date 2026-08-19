@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
-<title>ジャグラー α判定 - 台移動対応</title>
+<title>ジャグラーα判定システム</title>
 <style>
 :root{--bg:#0d1016;--card:#171b23;--card2:#10151d;--line:#2a313c;--text:#f4f7fb;--muted:#9aa4b2;--accent:#4f8cff;--good:#42c88a;--warn:#f2b84b;--bad:#ff6b6b}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(180deg,#090c11 0%,#111722 42%,#0d1016 100%);min-height:100vh}
@@ -35,7 +35,7 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 .ruleOpen{width:100%;margin-top:8px}
 .collapsedBody{display:none!important}.collapseBtn{white-space:nowrap}
 .graphBox{margin-top:10px;background:#0c1117;border:1px solid var(--line);border-radius:14px;padding:12px;overflow-x:auto}
-.graphCanvas{min-width:620px}
+.graphCanvas{min-width:420px}
 .eventInputRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
 .eventButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
 .eventBtn{background:#171d26;color:#aeb8c5;border:1px solid #303846;padding:12px 5px;border-radius:12px;font-weight:900}
@@ -45,6 +45,28 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 .savedActions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.savedExcerpt{font-size:12px;color:var(--muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .calendarGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:10px}.calDow{text-align:center;font-size:11px;color:var(--muted);padding:4px 0}.calDay{min-height:58px;background:#10151c;border:1px solid #252d37;border-radius:9px;padding:5px;font-size:11px}.calDay.empty{opacity:.2}.calNum{color:var(--muted)}.calProfit{font-weight:850;margin-top:7px;font-size:11px;line-height:1.2}.calendarSummary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.calSum{background:#0c1117;border:1px solid var(--line);border-radius:12px;padding:10px}.calSum .v{font-size:20px;font-weight:900;margin-top:4px}
 .modalGraph{min-height:220px}
+
+/* 旧UI寄せ + 視認性改善 */
+.decisionSummary{margin-top:10px;background:#10151d;border:1px solid #2d3744;border-radius:14px;padding:13px;font-size:14px;line-height:1.65}
+.promotionBox{margin-top:10px;background:#0f1a25;border:1px solid #31577c;border-radius:14px;padding:13px}
+.promotionTitle{font-size:13px;font-weight:900;color:#a9ceff;margin-bottom:8px}
+.promoGood{color:#42d69a;font-weight:800}.promoMuted{color:#9aa4b2}
+.eventBadge{display:inline-flex;align-items:center;justify-content:center;min-width:76px;padding:8px 10px;border-radius:11px;font-weight:950;font-size:16px;line-height:1}
+.eventBadge.bb{background:#ff4e43;color:#fff;box-shadow:0 3px 12px rgba(255,78,67,.18)}
+.eventBadge.reg{background:#3c7df0;color:#fff;box-shadow:0 3px 12px rgba(60,125,240,.18)}
+.eventBadge.hama{background:#3a414c;color:#f1f4f8}
+.hrow{grid-template-columns:48px 112px 1fr}
+.hProfit{font-weight:850;margin-top:3px}
+.savedItem{padding:13px}
+.savedMain{min-width:0;flex:1}
+.savedTitle{font-size:16px;font-weight:900;line-height:1.35}
+.savedRank{font-size:14px;margin-top:5px}
+.savedMoney{font-size:13px;color:#9aa4b2;margin-top:6px;line-height:1.5}
+.savedActions{display:grid;grid-template-columns:repeat(5,auto);gap:5px;margin-top:10px;justify-content:start}
+.savedActions .tiny{font-size:10px;padding:7px 8px}
+@media(max-width:480px){.savedActions{grid-template-columns:repeat(5,1fr)}.savedActions .tiny{padding:7px 4px}.hrow{grid-template-columns:42px 98px 1fr}.eventBadge{min-width:68px;font-size:15px;padding:8px 7px}}
+.graphCanvas{min-width:420px}
+
 </style>
 </head>
 <body>
@@ -79,7 +101,9 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 <div class="balanceStat"><div class="bk">現金投資</div><div class="bv" id="cashInvestView">0円</div></div>
 <div class="balanceStat"><div class="bk">持込メダル</div><div class="bv" id="carryInView">0枚</div></div>
 <div class="balanceStat"><div class="bk">推定持ちメダル</div><div class="bv" id="liveMedalsView">0枚</div></div>
+<div class="balanceStat"><div class="bk">推定回収額</div><div class="bv" id="liveReturnView">0円</div></div>
 <div class="balanceStat"><div class="bk">台単体 推定収支</div><div class="bv" id="liveProfitView">0円</div></div>
+<div class="balanceStat"><div class="bk">前台含む 推定収支</div><div class="bv" id="overallProfitView">0円</div></div>
 </div>
 <div class="balanceBtns"><button class="primary" id="invest1000Btn">＋1,000円 投資</button><button class="secondary" id="investMinus1000Btn">−1,000円 訂正</button></div>
 <div class="grid2" style="margin-top:10px"><div><label>実際の持ちメダル枚数で修正</label><input id="actualMedals" type="number" min="0"></div><div style="display:flex;align-items:end;gap:8px"><button class="secondary" id="setMedalsBtn">枚数を修正</button><button class="secondary" id="zeroMedalsBtn">0枚</button></div></div>
@@ -184,11 +208,60 @@ function nextDown(g,bb,reg,m){
  for(let x=1;x<=3000;x++)if(posterior(m,g+x,bb,reg).p4plus<limits[r.label])return x;
  return null
 }
-function rankCard(g,bb,reg,m,cap){let p=posterior(m,g,bb,reg),r=rankInfo(p.p4plus),d=nextDown(g,bb,reg,m),inv=cap>0?Math.min(cap,r.invest):r.invest;return `<div class="rankbox"><div class="rank ${r.cls}">${r.label}</div><div><div class="muted">P4+</div><div class="p4">${pct(p.p4plus)}</div><div class="note">${SPECS[m].name} 設定4〜6合計</div></div></div><div class="stats"><div class="stat"><div class="k">現在データ</div><div class="v">${g}G<br>BB${bb} REG${reg}</div></div><div class="stat"><div class="k">推奨投資上限</div><div class="v">${yen(inv)}</div></div><div class="stat"><div class="k">降格まで</div><div class="v">${d===null?"—":d+"G"}</div></div><div class="stat"><div class="k">次の判定</div><div class="v">${r.label}</div></div></div>`}
-function finance(){if(!session.finance)session.finance={cashInvest:0,carryIn:0,adjust:0,carryMode:null};return session.finance}
+function lowerRankLabel(label){
+ const order=["D","C−","C+","B","B+","A","A+","S"],i=order.indexOf(label);
+ return i>0?order[i-1]:null
+}
+function upperRankInfo(label){
+ const order=[["D",0],["C−",40],["C+",45],["B",50],["B+",60],["A",70],["A+",80],["S",90]];
+ let i=order.findIndex(x=>x[0]===label);
+ return (i>=0&&i<order.length-1)?{label:order[i+1][0],threshold:order[i+1][1]}:null
+}
+function bonusPromotionLimit(g,bb,reg,m,type){
+ let cur=rankInfo(posterior(m,g,bb,reg).p4plus),up=upperRankInfo(cur.label);
+ if(!up)return{kind:"top"};
+ let best=0;
+ for(let x=1;x<=1500;x++){
+   let p=posterior(m,g+x,bb+(type==="BB"?1:0),reg+(type==="REG"?1:0)).p4plus;
+   if(p>=up.threshold)best=x
+ }
+ return best>0?{kind:"ok",g:best,to:up.label}:{kind:"no",to:up.label}
+}
+function rankCard(g,bb,reg,m,cap){
+ let p=posterior(m,g,bb,reg),r=rankInfo(p.p4plus),d=nextDown(g,bb,reg,m),inv=cap>0?Math.min(cap,r.invest):r.invest;
+ let lower=lowerRankLabel(r.label), bbUp=bonusPromotionLimit(g,bb,reg,m,"BB"), regUp=bonusPromotionLimit(g,bb,reg,m,"REG");
+ let battle=d===null?"降格ラインなし":`<b>${d}G</b> ノーボーナスで <b>${r.label} → ${lower||"D"}</b>`;
+ let promo;
+ if(r.label==="S"){
+   promo=`<div class="promoGood">現在Sランクのため、これ以上のランク昇格はありません。</div>`
+ }else{
+   let fmt=(x,t)=>x.kind==="ok"?`<b>${x.g}G以内</b>の${t}で <b>${x.to}</b>へ`:`${t}1回では${x.to}に届きません`;
+   promo=`<div>${fmt(bbUp,"BB")}</div><div style="margin-top:5px">${fmt(regUp,"REG")}</div>`
+ }
+ return `<div class="rankbox"><div class="rank ${r.cls}">${r.label}</div><div><div class="muted">P4+</div><div class="p4">${pct(p.p4plus)}</div><div class="note">${SPECS[m].name} 設定4〜6合計事後確率</div></div></div>
+ <div class="stats">
+  <div class="stat"><div class="k">現在データ</div><div class="v">${g}G<br>BB${bb} REG${reg}</div></div>
+  <div class="stat"><div class="k">推奨投資上限</div><div class="v">${yen(inv)}</div></div>
+  <div class="stat"><div class="k">降格まで</div><div class="v">${d===null?"—":d+"G"}</div></div>
+  <div class="stat"><div class="k">次の判定</div><div class="v">${d===null?r.label:(lower||"D")}</div></div>
+ </div>
+ <div class="decisionSummary">あと何G勝負できるか： ${battle}</div>
+ <div class="promotionBox"><div class="promotionTitle">ランク昇格</div>${promo}</div>`
+}
+function finance(){if(!session.finance)session.finance={cashInvest:0,carryIn:0,adjust:0,carryMode:null,priorProfit:0};if(session.finance.priorProfit==null)session.finance.priorProfit=0;return session.finance}
 function rawMedals(){if(!session)return 0;let f=finance(),played=session.current.g-session.start.g,m=f.carryIn+f.cashInvest/COIN_YEN-played*GAME_COIN_RATE+f.adjust;for(const e of session.events){if(e.type==="BB")m+=SPECS[session.machine].bbPay;if(e.type==="REG")m+=SPECS[session.machine].regPay}return Math.max(0,m)}
-function moneyState(){let f=finance(),med=rawMedals(),ret=med*COIN_YEN,profit=ret-f.cashInvest-f.carryIn*COIN_YEN;return{...f,med,ret,profit}}
-function renderBalance(){if(!session)return;let s=moneyState();$("cashInvestView").textContent=yen(s.cashInvest);$("carryInView").textContent=(s.carryIn?((s.carryMode==="approx"||s.carryMode==="auto")?"約":""):"")+Math.round(s.carryIn)+"枚";$("liveMedalsView").textContent=Math.round(s.med)+"枚";$("liveProfitView").textContent=(s.profit>=0?"+":"")+yen(s.profit);$("liveProfitView").className="bv "+(s.profit>=0?"good":"bad");$("actualInvest").value=s.cashInvest||""}
+function moneyState(){let f=finance(),med=rawMedals(),ret=med*COIN_YEN,profit=ret-f.cashInvest-f.carryIn*COIN_YEN,overallProfit=(f.priorProfit||0)+profit;return{...f,med,ret,profit,overallProfit}}
+function renderBalance(){
+ if(!session)return;
+ let s=moneyState();
+ $("cashInvestView").textContent=yen(s.cashInvest);
+ $("carryInView").textContent=(s.carryIn?((s.carryMode==="approx"||s.carryMode==="auto")?"約":""):"")+Math.round(s.carryIn)+"枚";
+ $("liveMedalsView").textContent=Math.round(s.med)+"枚";
+ $("liveReturnView").textContent=yen(s.ret);
+ $("liveProfitView").textContent=(s.profit>=0?"+":"")+yen(s.profit);$("liveProfitView").className="bv "+(s.profit>=0?"good":"bad");
+ $("overallProfitView").textContent=(s.overallProfit>=0?"+":"")+yen(s.overallProfit);$("overallProfitView").className="bv "+(s.overallProfit>=0?"good":"bad");
+ $("actualInvest").value=s.cashInvest||""
+}
 
 function estimateProfitAt(s,eventCount){
  let f=s.finance||{cashInvest:0,carryIn:0,adjust:0}, medals=f.carryIn+f.cashInvest/COIN_YEN+(f.adjust||0);
@@ -225,7 +298,7 @@ function graphPointsFromLog(log){
 function renderGraph(el,pts){
  if(!el)return;
  if(!pts||pts.length<2){el.innerHTML='<div class="note">推移データが2点以上になるとグラフを表示します。</div>';return}
- const W=Math.max(760,pts.length*95),H=330,L=60,R=76,T=42,B=48;
+ const W=Math.max(520,pts.length*64),H=330,L=56,R=70,T=42,B=48;
  const pMin=Math.max(0,Math.floor((Math.min(...pts.map(x=>x.p4))-8)/10)*10);
  const pMax=Math.min(100,Math.max(pMin+10,Math.ceil((Math.max(...pts.map(x=>x.p4))+8)/10)*10));
  let profits=pts.map(x=>Number.isFinite(x.profit)?x.profit:0), abs=Math.max(2000,...profits.map(Math.abs));
@@ -299,17 +372,46 @@ function renderCalendar(){
  out+='</div>';$("calendarGrid").innerHTML=out
 }
 
-function begin(){let m=$("machine").value,g=+$("startG").value,bb=+$("startBB").value,reg=+$("startREG").value,cap=+$("userCap").value||0;if(!g||bb+reg>g)return alert("入力値を確認してください");let p=posterior(m,g,bb,reg),r=rankInfo(p.p4plus);session={machine:m,start:{g,bb,reg,p4:p.p4plus,rank:r.label,recInvest:cap>0?Math.min(cap,r.invest):r.invest,userCap:cap},current:{g,bb,reg},events:[],finance:{cashInvest:0,carryIn:pendingCarry?.medals||0,adjust:0,carryMode:pendingCarry?.mode||null},actualInvest:null,actualReturn:null,endReason:"任意終了",memo:""};pendingCarry=null;localStorage.removeItem("alpha_pending_carry");showSession();saveTemp()}
+function begin(){let m=$("machine").value,g=+$("startG").value,bb=+$("startBB").value,reg=+$("startREG").value,cap=+$("userCap").value||0;if(!g||bb+reg>g)return alert("入力値を確認してください");let p=posterior(m,g,bb,reg),r=rankInfo(p.p4plus);session={machine:m,start:{g,bb,reg,p4:p.p4plus,rank:r.label,recInvest:cap>0?Math.min(cap,r.invest):r.invest,userCap:cap},current:{g,bb,reg},events:[],finance:{cashInvest:0,carryIn:pendingCarry?.medals||0,adjust:0,carryMode:pendingCarry?.mode||null,priorProfit:pendingCarry?.chainProfit||0},actualInvest:null,actualReturn:null,endReason:"任意終了",memo:""};pendingCarry=null;localStorage.removeItem("alpha_pending_carry");showSession();saveTemp()}
 function showSession(){["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.remove("hidden"));$("initialResultBody").innerHTML=rankCard(session.start.g,session.start.bb,session.start.reg,session.machine,session.start.userCap);renderCurrent();renderHistory();renderBalance();updateCurrentGraph();updateLog();renderPending();if((session.events||[]).some(e=>e.type==="BB"||e.type==="REG"))toggleInitial(true)}
 function addEvent(){let g=+$("eventG").value,t=selectedEvent;if(!g)return;session.current.g+=g;if(t==="BB")session.current.bb++;if(t==="REG")session.current.reg++;let p=posterior(session.machine,session.current.g,session.current.bb,session.current.reg),r=rankInfo(p.p4plus);session.events.push({gap:g,type:t,p4:p.p4plus,rank:r.label,totalG:session.current.g,bb:session.current.bb,reg:session.current.reg});$("eventG").value="";renderCurrent();renderHistory();renderBalance();updateCurrentGraph();if(t==="BB"||t==="REG")toggleInitial(true);updateLog();saveTemp()}
 function undo(){if(!session?.events.length)return;session.events.pop();let s={g:session.start.g,bb:session.start.bb,reg:session.start.reg};for(const e of session.events){s.g+=e.gap;if(e.type==="BB")s.bb++;if(e.type==="REG")s.reg++}session.current=s;renderCurrent();renderHistory();renderBalance();updateCurrentGraph();if(!(session.events||[]).some(e=>e.type==="BB"||e.type==="REG"))toggleInitial(false);updateLog();saveTemp()}
 function renderCurrent(){$("currentResult").innerHTML=rankCard(session.current.g,session.current.bb,session.current.reg,session.machine,session.start.userCap)}
-function renderHistory(){let el=$("history");if(!session.events.length){el.innerHTML='<div class="note">まだ実戦入力はありません。</div>';return}el.innerHTML=session.events.map((e,i)=>`<div class="hrow"><div>#${i+1}</div><div><b>${e.gap}G ${e.type==="HAMA"?"ハマり":e.type}</b></div><div class="metrics">P4+ ${pct(e.p4)}　<b>${e.rank}</b><br><span class="muted">${e.totalG}G / BB${e.bb} / REG${e.reg}</span></div></div>`).join("")}
+function medalsAtEventCount(count){
+ let f=finance(),med=f.carryIn+f.cashInvest/COIN_YEN+(f.adjust||0);
+ for(let i=0;i<count;i++){
+   let e=session.events[i];med-=e.gap*GAME_COIN_RATE;
+   if(e.type==="BB")med+=SPECS[session.machine].bbPay;
+   if(e.type==="REG")med+=SPECS[session.machine].regPay
+ }
+ return Math.max(0,med)
+}
+function renderHistory(){
+ let el=$("history");
+ if(!session.events.length){el.innerHTML='<div class="note">まだ実戦入力はありません。</div>';return}
+ let f=finance();
+ el.innerHTML=session.events.map((e,i)=>{
+   let med=medalsAtEventCount(i+1), profit=med*COIN_YEN-f.cashInvest-f.carryIn*COIN_YEN, overall=(f.priorProfit||0)+profit;
+   let cls=e.type==="BB"?"bb":e.type==="REG"?"reg":"hama",name=e.type==="HAMA"?"ハマり":e.type;
+   return `<div class="hrow"><div>#${i+1}</div><div><span class="eventBadge ${cls}">${e.gap}G ${name}</span></div><div class="metrics">P4+ ${pct(e.p4)}　<b>${e.rank}</b><br><span class="muted">${e.totalG}G / BB${e.bb} / REG${e.reg}</span><div class="hProfit">推定 ${Math.round(med)}枚 / 収支 ${profit>=0?"+":""}${yen(profit)}${f.priorProfit?`<br><span class="muted">前台込 ${overall>=0?"+":""}${yen(overall)}</span>`:""}</div></div></div>`
+ }).join("")
+}
 function changeInvest(v){let f=finance();f.cashInvest=Math.max(0,f.cashInvest+v);renderBalance();updateCurrentGraph();updateLog();saveTemp()}
 function correctMedals(v){v=+v;if(!Number.isFinite(v)||v<0)return;finance().adjust+=v-rawMedals();$("actualMedals").value="";renderBalance();updateCurrentGraph();updateLog();saveTemp()}
-function carry(mode){let med;if(mode==="exact"){let v=prompt("現在の持ちメダル枚数を入力してください");if(v===null)return;med=Math.max(0,+v||0)}else if(mode==="approx"){let base=Math.round(rawMedals()/50)*50;let v=prompt("概算枚数（50枚刻み）",String(base));if(v===null)return;med=Math.max(0,Math.round((+v||0)/50)*50)}else med=Math.round(rawMedals());pendingCarry={medals:med,mode,from:SPECS[session.machine].name,at:Date.now()};localStorage.setItem("alpha_pending_carry",JSON.stringify(pendingCarry));session.endReason="台移動";$("endReason").value="台移動";session.memo=(session.memo?session.memo+" / ":"")+`持ちメダル${mode==="exact"?"": "約"}${med}枚を次台へ引継ぎ`;$("memo").value=session.memo;updateLog();saveTemp();renderPending();toast("次の台へ引継ぎ設定しました")}
-function renderPending(){let b=$("pendingCarry");if(!pendingCarry){b.classList.add("hidden");return}b.classList.remove("hidden");$("pendingCarryText").textContent=`${pendingCarry.from||"前台"} → ${pendingCarry.mode==="exact"?"":"約"}${pendingCarry.medals}枚を次の実戦開始時に持込`;}
-function makeLog(){if(!session)return"";let s=session.start,c=session.current,p=posterior(session.machine,c.g,c.bb,c.reg).p4plus,r=rankInfo(p),m=moneyState(),lines=["【α実戦記録】","",`機種：${SPECS[session.machine].name}`,`開始データ：${s.g}G BB${s.bb} REG${s.reg}`,`開始P4+：${pct(s.p4)}`,`開始ランク：${s.rank}`,`推奨投資額：${yen(s.recInvest)}`];if(m.carryIn>0)lines.push(`持込メダル：${m.carryMode==="exact"?"":"約"}${Math.round(m.carryIn)}枚`);lines.push("","【実戦】");if(!session.events.length)lines.push("記録なし");else session.events.forEach(e=>lines.push(`${String(e.gap).padStart(3," ")}G ${(e.type==="HAMA"?"ハマり":e.type).padEnd(4," ")}  P4+ ${pct(e.p4).padStart(5," ")}  ${e.rank}`));lines.push("","【推定収支】",`現金投資：${yen(m.cashInvest)}`,`推定持ちメダル：${Math.round(m.med)}枚`,`台単体推定収支：${m.profit>=0?"+":""}${yen(m.profit)}`,"","【終了】",`終了データ：${c.g}G BB${c.bb} REG${c.reg}`,`最終P4+：${pct(p)}`,`最終ランク：${r.label}`);let ai=$("actualInvest").value.trim(),ar=$("actualReturn").value.trim();if(ai)lines.push(`実投資：${yen(+ai)}`);if(ar)lines.push(`回収：${yen(+ar)}`);if(ai&&ar)lines.push(`収支：${(+ar-+ai)>=0?"+":""}${yen(+ar-+ai)}`);lines.push(`終了理由：${$("endReason").value}`);if($("memo").value.trim())lines.push(`メモ：${$("memo").value.trim()}`);return lines.join("\n")}
+function carry(mode){
+ let med;
+ if(mode==="exact"){let v=prompt("現在の持ちメダル枚数を入力してください");if(v===null)return;med=Math.max(0,+v||0)}
+ else if(mode==="approx"){let base=Math.round(rawMedals()/50)*50;let v=prompt("概算枚数（50枚刻み）",String(base));if(v===null)return;med=Math.max(0,Math.round((+v||0)/50)*50)}
+ else med=Math.round(rawMedals());
+ let f=finance(), tableProfitAtMove=med*COIN_YEN-f.cashInvest-f.carryIn*COIN_YEN, chainProfit=(f.priorProfit||0)+tableProfitAtMove;
+ pendingCarry={medals:med,mode,from:SPECS[session.machine].name,at:Date.now(),chainProfit};
+ localStorage.setItem("alpha_pending_carry",JSON.stringify(pendingCarry));
+ session.endReason="台移動";$("endReason").value="台移動";
+ session.memo=(session.memo?session.memo+" / ":"")+`持ちメダル${mode==="exact"?"":"約"}${med}枚を次台へ引継ぎ`;
+ $("memo").value=session.memo;updateLog();saveTemp();renderPending();toast("次の台へ引継ぎ設定しました")
+}
+function renderPending(){let b=$("pendingCarry");if(!pendingCarry){b.classList.add("hidden");return}b.classList.remove("hidden");let cp=pendingCarry.chainProfit;$("pendingCarryText").textContent=`${pendingCarry.from||"前台"} → ${pendingCarry.mode==="exact"?"":"約"}${pendingCarry.medals}枚を次の実戦開始時に持込${Number.isFinite(cp)?` / 前台までの推定収支 ${cp>=0?"+":""}${yen(cp)}`:""}`;}
+function makeLog(){if(!session)return"";let s=session.start,c=session.current,p=posterior(session.machine,c.g,c.bb,c.reg).p4plus,r=rankInfo(p),m=moneyState(),lines=["【α実戦記録】","",`機種：${SPECS[session.machine].name}`,`開始データ：${s.g}G BB${s.bb} REG${s.reg}`,`開始P4+：${pct(s.p4)}`,`開始ランク：${s.rank}`,`推奨投資額：${yen(s.recInvest)}`];if(m.carryIn>0)lines.push(`持込メダル：${m.carryMode==="exact"?"":"約"}${Math.round(m.carryIn)}枚`);lines.push("","【実戦】");if(!session.events.length)lines.push("記録なし");else session.events.forEach(e=>lines.push(`${String(e.gap).padStart(3," ")}G ${(e.type==="HAMA"?"ハマり":e.type).padEnd(4," ")}  P4+ ${pct(e.p4).padStart(5," ")}  ${e.rank}`));lines.push("","【推定収支】",`現金投資：${yen(m.cashInvest)}`,`推定持ちメダル：${Math.round(m.med)}枚`,`台単体推定収支：${m.profit>=0?"+":""}${yen(m.profit)}`,`前台含む推定収支：${m.overallProfit>=0?"+":""}${yen(m.overallProfit)}`,"","【終了】",`終了データ：${c.g}G BB${c.bb} REG${c.reg}`,`最終P4+：${pct(p)}`,`最終ランク：${r.label}`);let ai=$("actualInvest").value.trim(),ar=$("actualReturn").value.trim();if(ai)lines.push(`実投資：${yen(+ai)}`);if(ar)lines.push(`回収：${yen(+ar)}`);if(ai&&ar)lines.push(`収支：${(+ar-+ai)>=0?"+":""}${yen(+ar-+ai)}`);lines.push(`終了理由：${$("endReason").value}`);if($("memo").value.trim())lines.push(`メモ：${$("memo").value.trim()}`);return lines.join("\n")}
 function updateLog(){$("logPreview").textContent=makeLog()}
 function finish(){session.endReason=$("endReason").value;session.memo=$("memo").value;session.actualInvest=$("actualInvest").value?+$("actualInvest").value:null;session.actualReturn=$("actualReturn").value?+$("actualReturn").value:null;updateLog();saveTemp()}
 function copyLog(){navigator.clipboard?.writeText(makeLog());toast("実戦記録をコピーしました")}
@@ -318,13 +420,38 @@ function restoreTemp(){let x=JSON.parse(localStorage.getItem("alpha_current_sess
 function resetSession(){session=null;localStorage.removeItem("alpha_current_session");$("initialResultBody").classList.remove("collapsedBody");$("toggleInitialBtn").textContent="折りたたむ";$("endCardBody").classList.add("collapsedBody");$("toggleEndBtn").textContent="開く";["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.add("hidden"));["compact","startG","startBB","startREG","userCap","eventG","actualInvest","actualReturn","memo"].forEach(x=>$(x).value="");window.scrollTo({top:0,behavior:"smooth"})}
 function saveHistory(){if(!session)return;let h=JSON.parse(localStorage.getItem("alpha_history")||"[]");h.unshift({at:Date.now(),log:makeLog(),points:graphPointsFromSession(session)});localStorage.setItem("alpha_history",JSON.stringify(h.slice(0,200)));renderSaved();toast("履歴に保存しました")}
 let editingHistoryIndex=null;
+function parseLogSummary(log){
+ const machine=(log.match(/^機種：(.+)$/m)||[])[1]||"実戦記録";
+ const sp=(log.match(/^開始P4\+：\s*([0-9.]+)%/m)||[])[1], sr=(log.match(/^開始ランク：\s*(.+)$/m)||[])[1];
+ const fp=(log.match(/^最終P4\+：\s*([0-9.]+)%/m)||[])[1], fr=(log.match(/^最終ランク：\s*(.+)$/m)||[])[1];
+ const ai=(log.match(/^実投資：\s*([\d,]+)円/m)||log.match(/^現金投資：\s*([\d,]+)円/m)||[])[1];
+ const ar=(log.match(/^回収：\s*([\d,]+)円/m)||[])[1];
+ const pr=parseProfit(log);
+ return {machine,sp,sr,fp,fr,ai,ar,pr}
+}
+function deleteSavedHistory(i){
+ let h=JSON.parse(localStorage.getItem("alpha_history")||"[]");if(!h[i])return;
+ if(!confirm("この保存履歴を削除しますか？"))return;
+ h.splice(i,1);localStorage.setItem("alpha_history",JSON.stringify(h));renderSaved();toast("履歴を削除しました")
+}
 function renderSaved(){
-  let h=JSON.parse(localStorage.getItem("alpha_history")||"[]"),el=$("savedHistory");
-  el.innerHTML=h.length?h.map((x,i)=>{
-    let pr=parseProfit(x.log),machine=(x.log.match(/^機種：(.+)$/m)||[])[1]||"実戦記録";
-    return `<div class="savedItem"><div class="savedTop"><div><b>${new Date(x.at).toLocaleString("ja-JP")}</b><div class="savedExcerpt">${machine}${pr===null?"":`　収支 ${pr>=0?"+":""}${pr.toLocaleString("ja-JP")}円`}</div></div><div class="savedActions"><button class="tiny" onclick="copySavedHistory(${i})">コピー</button><button class="tiny" onclick="showSavedGraph(${i})">グラフ</button><button class="tiny" onclick="editSavedHistory(${i})">編集</button><button class="tiny" onclick="alert(historyData[${i}].log)">詳細</button></div></div></div>`
-  }).join(""):'<div class="note">保存済み履歴はありません。</div>';
-  window.historyData=h
+ let h=JSON.parse(localStorage.getItem("alpha_history")||"[]"),el=$("savedHistory");
+ el.innerHTML=h.length?h.map((x,i)=>{
+   let s=parseLogSummary(x.log), money=s.pr===null?"収支 —":`収支 <span class="${s.pr>=0?"good":"bad"}">${s.pr>=0?"+":""}${s.pr.toLocaleString("ja-JP")}円</span>`;
+   return `<div class="savedItem"><div class="savedMain">
+    <div class="savedTitle">${new Date(x.at).toLocaleString("ja-JP")}　${s.machine}</div>
+    <div class="savedRank">${s.sr||"—"} ${s.sp?`${s.sp}%`:""} → ${s.fr||"—"} ${s.fp?`${s.fp}%`:""}</div>
+    <div class="savedMoney">投資 ${s.ai?Number(s.ai.replace(/,/g,"")).toLocaleString("ja-JP")+"円":"—"} / 回収 ${s.ar?Number(s.ar.replace(/,/g,"")).toLocaleString("ja-JP")+"円":"—"} / ${money}</div>
+    <div class="savedActions">
+      <button class="tiny" onclick="copySavedHistory(${i})">コピー</button>
+      <button class="tiny" onclick="editSavedHistory(${i})">編集</button>
+      <button class="tiny" onclick="showSavedGraph(${i})">グラフ</button>
+      <button class="tiny" onclick="alert(historyData[${i}].log)">詳細</button>
+      <button class="tiny" onclick="deleteSavedHistory(${i})">削除</button>
+    </div>
+   </div></div>`
+ }).join(""):'<div class="note">保存済み履歴はありません。</div>';
+ window.historyData=h
 }
 function copySavedHistory(i){let h=JSON.parse(localStorage.getItem("alpha_history")||"[]");if(h[i])copyText(h[i].log,"この履歴をコピーしました")}
 function editSavedHistory(i){
