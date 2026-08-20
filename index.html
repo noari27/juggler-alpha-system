@@ -87,6 +87,26 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 .betaConfidence{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:900;border:1px solid #3b4554}.betaConfidence.low{color:#aab4c0;background:#171c23}.betaConfidence.mid{color:#ffd78a;background:#2b2518;border-color:#5c4b28}.betaConfidence.high{color:#bff7dd;background:#173227;border-color:#2d6a50}.modeBadge{display:inline-block;padding:4px 7px;border-radius:999px;font-size:10px;font-weight:900;margin-left:6px}.modeBadge.estimate{background:#26303d;color:#b9c5d4}.modeBadge.actual{background:#214c3a;color:#bff7dd}
 @media(max-width:480px){.counterGrid{grid-template-columns:repeat(3,1fr)}.counterItem{padding:7px 5px}.counterName{font-size:10px}.counterValue{font-size:23px}.counterBtns{grid-template-columns:34px 1fr}}
 
+
+/* 保存履歴：情報量は維持したままコンパクト化 */
+.savedItem{padding:10px 11px;margin-top:6px;border-radius:12px}
+.savedTitle{font-size:15px;line-height:1.25}
+.savedRank{font-size:13px;margin-top:3px;line-height:1.25}
+.savedMoney{font-size:12px;margin-top:4px;line-height:1.35}
+.savedActions{gap:4px;margin-top:7px}
+.savedActions .tiny{font-size:10px;padding:6px 6px;min-height:31px}
+#savedHistoryControls{margin-bottom:6px}
+#savedHistoryBody.collapsedBody{display:none!important}
+.historyHeaderActions{display:flex;gap:6px;align-items:center}
+@media(max-width:480px){
+ .savedItem{padding:9px 10px;margin-top:5px}
+ .savedTitle{font-size:14px}
+ .savedRank{font-size:12px}
+ .savedMoney{font-size:11.5px;line-height:1.3}
+ .savedActions{grid-template-columns:repeat(5,1fr);margin-top:6px}
+ .savedActions .tiny{padding:5px 2px;min-height:30px}
+}
+
 </style>
 </head>
 <body>
@@ -158,9 +178,11 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 <div style="margin-top:12px"><label>コピーされる実戦記録</label><div id="logPreview" class="logbox"></div></div>
 <button class="primary big-action" id="copyBtn">📋 実戦記録をコピー</button><button class="secondary big-action" id="saveHistoryBtn">★ この実戦を履歴に保存</button><button class="secondary big-action" id="newBtn">新しい実戦を開始</button></div></div>
 
-<div class="card"><div class="card-title"><h2>保存済み履歴</h2><button class="tiny" id="clearHistoryBtn">履歴を全削除</button></div>
-<div class="grid2" style="margin-bottom:8px"><button class="secondary" id="exportHistoryBtn">⬇ 履歴を書き出し</button><button class="secondary" id="openCalendarBtn">📅 収支カレンダー</button></div>
-<div id="savedHistory"></div></div>
+<div class="card"><div class="card-title"><h2>保存済み履歴</h2><div class="historyHeaderActions"><button class="tiny collapseBtn" id="toggleSavedHistoryBtn">折りたたむ</button><button class="tiny" id="clearHistoryBtn">履歴を全削除</button></div></div>
+<div id="savedHistoryBody">
+<div class="grid2" id="savedHistoryControls"><button class="secondary" id="exportHistoryBtn">⬇ 履歴を書き出し</button><button class="secondary" id="openCalendarBtn">📅 収支カレンダー</button></div>
+<div id="savedHistory"></div>
+</div></div>
 
 <button class="tiny ruleOpen" id="openRulesBtn">判定ルール・推奨投資額を開く</button>
 </div>
@@ -698,6 +720,20 @@ function renderSaved(){
  }).join(""):'<div class="note">保存済み履歴はありません。</div>';
  window.historyData=h
 }
+
+function toggleSavedHistory(force){
+ const body=$("savedHistoryBody"),btn=$("toggleSavedHistoryBtn");
+ const collapse=force===undefined?!body.classList.contains("collapsedBody"):force;
+ body.classList.toggle("collapsedBody",collapse);
+ btn.textContent=collapse?"履歴を開く":"折りたたむ";
+ try{localStorage.setItem("alpha_saved_history_collapsed",collapse?"1":"0")}catch(e){}
+}
+function restoreSavedHistoryCollapse(){
+ let collapsed=false;
+ try{collapsed=localStorage.getItem("alpha_saved_history_collapsed")==="1"}catch(e){}
+ toggleSavedHistory(collapsed)
+}
+
 function copySavedHistory(i){let h=JSON.parse(localStorage.getItem("alpha_history")||"[]");if(h[i])copyText(h[i].log,"この履歴をコピーしました")}
 function editSavedHistory(i){
   let h=JSON.parse(localStorage.getItem("alpha_history")||"[]");
@@ -735,6 +771,7 @@ document.querySelectorAll(".eventBtn").forEach(btn=>btn.onclick=()=>{
 });
 $("toggleEndBtn").onclick=()=>toggleEnd();
 $("toggleInitialBtn").onclick=()=>toggleInitial();
+$("toggleSavedHistoryBtn").onclick=()=>toggleSavedHistory();
 $("exportHistoryBtn").onclick=exportAllHistory;
 $("openCalendarBtn").onclick=()=>{calendarDate=new Date();renderCalendar();$("calendarModal").classList.remove("hidden")};
 $("closeCalendarBtn").onclick=()=>$("calendarModal").classList.add("hidden");
@@ -751,6 +788,6 @@ $("rulesModal").onclick=e=>{if(e.target===$("rulesModal"))$("rulesModal").classL
 $("closeEditHistoryBtn").onclick=()=>{$("editHistoryModal").classList.add("hidden");editingHistoryIndex=null};
 $("editHistoryModal").onclick=e=>{if(e.target===$("editHistoryModal")){$("editHistoryModal").classList.add("hidden");editingHistoryIndex=null}};
 $("saveEditedHistoryBtn").onclick=saveEditedHistory;
-renderPending();renderSaved();restoreTemp();
+renderPending();renderSaved();restoreSavedHistoryCollapse();restoreTemp();
 </script>
 </body></html>
