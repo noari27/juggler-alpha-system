@@ -80,6 +80,13 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 .timeGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 @media(max-width:480px){.timeGrid{grid-template-columns:1fr 1fr}}
 
+/* βモデル + 小役カウンター追加 */
+.modelSwitch{margin:0 0 12px;background:#101720;border:1px solid #33445a;border-radius:14px;padding:12px}.checkRow{display:flex;align-items:center;gap:10px}.checkRow input{width:22px;height:22px;accent-color:#4f8cff;flex:0 0 auto}.checkRow label{margin:0;color:var(--text);font-size:14px;font-weight:850}
+.counterPanel{margin-bottom:12px;background:#0d141d;border:1px solid #2d3a4b;border-radius:14px;padding:12px}.counterTitle{font-size:13px;font-weight:900;margin-bottom:9px}.counterGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.counterItem{background:#111922;border:1px solid #2b3745;border-radius:13px;padding:9px;text-align:center}.counterName{font-size:12px;color:var(--muted);font-weight:850}.counterValue{font-size:26px;font-weight:950;margin:5px 0}.counterBtns{display:grid;grid-template-columns:40px 1fr;gap:5px}.counterMinus{padding:10px 4px;background:#202833;color:#aeb8c5;border:1px solid #333e4d}.counterPlus{padding:10px 4px;background:#294e3e;color:#eafff5;border:1px solid #386f58;font-size:18px}.counterMeta{margin-top:9px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.miniStat{background:#101720;border:1px solid #2a3849;border-radius:11px;padding:9px}.miniStat .k{font-size:10px;color:var(--muted)}.miniStat .v{font-size:16px;font-weight:900;margin-top:3px}
+.betaBox{margin-top:10px;border:1px solid #554c73;background:#171526;border-radius:14px;padding:12px}.betaTitle{font-size:11px;color:#bdb2e8}.betaP4{font-size:25px;font-weight:950;color:#d5ccff}.betaHint{font-size:11px;color:#aaa1c9;margin-top:4px;line-height:1.45}
+.betaConfidence{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:900;border:1px solid #3b4554}.betaConfidence.low{color:#aab4c0;background:#171c23}.betaConfidence.mid{color:#ffd78a;background:#2b2518;border-color:#5c4b28}.betaConfidence.high{color:#bff7dd;background:#173227;border-color:#2d6a50}.modeBadge{display:inline-block;padding:4px 7px;border-radius:999px;font-size:10px;font-weight:900;margin-left:6px}.modeBadge.estimate{background:#26303d;color:#b9c5d4}.modeBadge.actual{background:#214c3a;color:#bff7dd}
+@media(max-width:480px){.counterGrid{grid-template-columns:repeat(3,1fr)}.counterItem{padding:7px 5px}.counterName{font-size:10px}.counterValue{font-size:23px}.counterBtns{grid-template-columns:34px 1fr}}
+
 </style>
 </head>
 <body>
@@ -99,6 +106,12 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 <div class="card hidden" id="initialResult"><div class="card-title"><h2>開始判定</h2><button class="tiny collapseBtn" id="toggleInitialBtn">折りたたむ</button></div><div id="initialResultBody"></div></div>
 
 <div class="card hidden" id="playCard"><div class="card-title"><h2>② 実戦入力</h2></div>
+<div class="modelSwitch"><div class="checkRow"><input type="checkbox" id="useBeta"><label for="useBeta">βモデル（ぶどう込みP4+）を併用する</label></div><div class="note" style="margin-top:7px">α＝G・BB・REGのみ。β＝α＋実戦開始後のぶどう。β判定はBB / REG / ハマり更新時に表示し、機種×実戦G数で信頼度を自動判定します。履歴は「高」到達後だけβへ自動切替します。</div></div>
+<div class="counterPanel"><div class="counterTitle">小役カウンター</div><div class="counterGrid">
+<div class="counterItem"><div class="counterName">🍇 ぶどう</div><div class="counterValue" id="grapeCount">0</div><div class="counterBtns"><button type="button" class="counterMinus" data-counter="grape" data-delta="-1">−</button><button type="button" class="counterPlus" data-counter="grape" data-delta="1">＋</button></div></div>
+<div class="counterItem"><div class="counterName">🔁 リプレイ</div><div class="counterValue" id="replayCount">0</div><div class="counterBtns"><button type="button" class="counterMinus" data-counter="replay" data-delta="-1">−</button><button type="button" class="counterPlus" data-counter="replay" data-delta="1">＋</button></div></div>
+<div class="counterItem"><div class="counterName">🍒 チェリー</div><div class="counterValue" id="cherryCount">0</div><div class="counterBtns"><button type="button" class="counterMinus" data-counter="cherry" data-delta="-1">−</button><button type="button" class="counterPlus" data-counter="cherry" data-delta="1">＋</button></div></div>
+</div><div class="counterMeta"><div class="miniStat"><div class="k">最新確定G数</div><div class="v" id="counterGames">0G</div></div><div class="miniStat"><div class="k">ぶどう確率</div><div class="v" id="grapeRate">—</div></div></div><div class="note" style="margin-top:8px">＋を通常入力、−を訂正用として使います。</div></div>
 <div class="eventInputRow">
 <div><label>イベント</label><div class="eventButtons">
 <button type="button" class="eventBtn active" data-event="BB">BB</button>
@@ -109,18 +122,18 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 </div>
 <button class="primary big-action" id="recordBtn">記録して再判定</button><div id="currentResult" style="margin-top:12px"></div></div>
 
-<div class="card hidden" id="balanceCard"><div class="card-title"><h2>持ちメダル・推定収支</h2></div><div class="balanceBox">
+<div class="card hidden" id="balanceCard"><div class="card-title"><h2 id="balanceTitle">持ちメダル・推定収支</h2></div><div class="balanceBox">
 <div class="balanceStats">
 <div class="balanceStat"><div class="bk">現金投資</div><div class="bv" id="cashInvestView">0円</div></div>
 <div class="balanceStat"><div class="bk">持込メダル</div><div class="bv" id="carryInView">0枚</div></div>
-<div class="balanceStat"><div class="bk">推定持ちメダル</div><div class="bv" id="liveMedalsView">0枚</div></div>
-<div class="balanceStat"><div class="bk">推定回収額</div><div class="bv" id="liveReturnView">0円</div></div>
-<div class="balanceStat"><div class="bk">台単体 推定収支</div><div class="bv" id="liveProfitView">0円</div></div>
-<div class="balanceStat"><div class="bk">前台含む 推定収支</div><div class="bv" id="overallProfitView">0円</div></div>
+<div class="balanceStat"><div class="bk" id="medalLabel">推定持ちメダル</div><div class="bv" id="liveMedalsView">0枚</div></div>
+<div class="balanceStat"><div class="bk" id="returnLabel">推定回収額</div><div class="bv" id="liveReturnView">0円</div></div>
+<div class="balanceStat"><div class="bk" id="profitLabel">台単体 推定収支</div><div class="bv" id="liveProfitView">0円</div></div>
+<div class="balanceStat"><div class="bk" id="overallLabel">前台含む 推定収支</div><div class="bv" id="overallProfitView">0円</div></div>
 </div>
 <div class="balanceBtns"><button class="primary" id="invest1000Btn">＋1,000円 投資</button><button class="secondary" id="investMinus1000Btn">−1,000円 訂正</button></div>
 <div class="grid2" style="margin-top:10px"><div><label>実際の持ちメダル枚数で修正</label><input id="actualMedals" type="number" min="0"></div><div style="display:flex;align-items:end;gap:8px"><button class="secondary" id="setMedalsBtn">枚数を修正</button><button class="secondary" id="zeroMedalsBtn">0枚</button></div></div>
-<div class="note" style="margin-top:9px">推定は40Gで50枚消費を基準。持込メダルは現金投資と分離して管理します。</div>
+<div class="note" id="balanceNote" style="margin-top:9px">推定は40Gで50枚消費を基準。持込メダルは現金投資と分離して管理します。</div>
 
 <div class="carryBox"><strong>台移動する</strong><div class="carryInfo">現在の持ちメダルを次の台へ引き継げます。正確に数えなくても、50枚刻み概算または現在の推定値で移動できます。</div>
 <div class="carryModes"><button class="secondary" id="carryExactBtn">正確入力</button><button class="secondary" id="carryApproxBtn">50枚刻み</button><button class="secondary" id="carryAutoBtn">自動推定</button></div>
@@ -210,10 +223,10 @@ button{border:0;border-radius:13px;padding:13px 15px;font-weight:800;font-size:1
 
 <script>
 const SPECS={
-my5:{name:"マイジャグラーV",bbPay:240,regPay:96,settings:{1:[273.1,409.6],2:[270.8,385.5],3:[266.4,336.1],4:[254,290],5:[240.1,268.6],6:[229.1,229.1]}},
-gogo3:{name:"ゴーゴージャグラー3",bbPay:240,regPay:96,settings:{1:[259,354.2],2:[258,332.7],3:[257,306.2],4:[254,268.6],5:[247.3,247.3],6:[234.9,234.9]}},
-imex:{name:"アイムジャグラーEX",bbPay:252,regPay:96,settings:{1:[273.1,439.8],2:[269.7,399.6],3:[269.7,331],4:[259,315.1],5:[259,255],6:[255,255]}},
-girls:{name:"ジャグラーガールズSS",bbPay:240,regPay:96,settings:{1:[273.1,381],2:[270.8,350.5],3:[260.1,316.6],4:[250.1,281.3],5:[243.6,270.8],6:[226,252.1]}}
+my5:{name:"マイジャグラーV",bbPay:240,regPay:96,grapePay:8,cherryPay:2,settings:{1:[273.1,409.6],2:[270.8,385.5],3:[266.4,336.1],4:[254,290],5:[240.1,268.6],6:[229.1,229.1]},grape:{1:5.98,2:5.88,3:5.84,4:5.81,5:5.76,6:5.65}},
+gogo3:{name:"ゴーゴージャグラー3",bbPay:240,regPay:96,grapePay:8,cherryPay:2,settings:{1:[259,354.2],2:[258,332.7],3:[257,306.2],4:[254,268.6],5:[247.3,247.3],6:[234.9,234.9]},grape:{1:6.33,2:6.20,3:6.15,4:6.08,5:6.01,6:5.96}},
+imex:{name:"アイムジャグラーEX",bbPay:252,regPay:96,grapePay:8,cherryPay:2,settings:{1:[273.1,439.8],2:[269.7,399.6],3:[269.7,331],4:[259,315.1],5:[259,255],6:[255,255]},grape:{1:6.01,2:6.01,3:6.01,4:6.01,5:6.01,6:5.80}},
+girls:{name:"ジャグラーガールズSS",bbPay:240,regPay:96,grapePay:8,cherryPay:2,settings:{1:[273.1,381],2:[270.8,350.5],3:[260.1,316.6],4:[250.1,281.3],5:[243.6,270.8],6:[226,252.1]},grape:{1:5.98,2:5.98,3:5.98,4:5.98,5:5.88,6:5.83}}
 };
 const $=id=>document.getElementById(id), COIN_YEN=20, EXCHANGE_YEN=18.3, GAME_COIN_RATE=50/40;
 let session=null, selectedEvent=localStorage.getItem("alpha_selected_event")||"BB", pendingCarry=safeJSON("alpha_pending_carry",null);
@@ -221,7 +234,30 @@ const pct=n=>n.toFixed(1)+"%", yen=n=>Math.round(n).toLocaleString("ja-JP")+"円
 function safeJSON(key,fallback=null){try{let v=localStorage.getItem(key);return v?JSON.parse(v):fallback}catch(e){console.warn("storage parse failed",key,e);return fallback}}
 
 function toast(s){let t=$("toast");t.textContent=s;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1300)}
-function posterior(m,g,bb,reg){let logs=[];for(let s=1;s<=6;s++){let [bd,rd]=SPECS[m].settings[s],pB=1/bd,pR=1/rd,pN=1-pB-pR,n=Math.max(0,g-bb-reg);logs.push(bb*Math.log(pB)+reg*Math.log(pR)+n*Math.log(pN))}let mx=Math.max(...logs),w=logs.map(x=>Math.exp(x-mx)),sum=w.reduce((a,b)=>a+b,0),p=w.map(x=>x/sum);return{p4plus:(p[3]+p[4]+p[5])*100,probs:p.map(x=>x*100)}}
+function alphaLogs(m,g,bb,reg){let logs=[];for(let st=1;st<=6;st++){let [bd,rd]=SPECS[m].settings[st],pB=1/bd,pR=1/rd,pN=Math.max(1e-12,1-pB-pR),n=Math.max(0,g-bb-reg);logs.push(bb*Math.log(pB)+reg*Math.log(pR)+n*Math.log(pN))}return logs}
+function normalizeLogs(logs){let mx=Math.max(...logs),w=logs.map(x=>Math.exp(x-mx)),sum=w.reduce((a,b)=>a+b,0),p=w.map(x=>x/sum);return{p4plus:(p[3]+p[4]+p[5])*100,probs:p.map(x=>x*100)}}
+function posterior(m,g,bb,reg){return normalizeLogs(alphaLogs(m,g,bb,reg))}
+function logChoose(n,k){if(k<0||k>n)return -Infinity;k=Math.min(k,n-k);let x=0;for(let i=1;i<=k;i++)x+=Math.log(n-k+i)-Math.log(i);return x}
+function betaPosterior(m,g,bb,reg,playedG,grapes){let logs=alphaLogs(m,g,bb,reg),n=Math.max(0,Math.round(playedG)),k=Math.max(0,Math.min(n,Math.round(grapes)));if(n<=0)return normalizeLogs(logs);let lc=logChoose(n,k);logs=logs.map((x,i)=>{let den=SPECS[m].grape[i+1],pg=1/den;return x+lc+k*Math.log(pg)+(n-k)*Math.log(1-pg)});return normalizeLogs(logs)}
+// 720万実戦シミュレーションを基準にしたβ信頼度。G数は「ぶどうを数えた実戦G数」。
+// 高：P4+精度の改善が明確になった領域。アイム/ガールズは3000Gまでの検証では高に未到達。
+const BETA_CONFIDENCE={
+ my5:{medium:500,high:2000},
+ gogo3:{medium:500,high:1500},
+ imex:{medium:2000,high:null},
+ girls:{medium:1500,high:null}
+};
+function betaConfidence(machine,playedG){
+ let x=BETA_CONFIDENCE[machine]||{medium:Infinity,high:null},g=Math.max(0,playedG||0);
+ if(x.high!=null&&g>=x.high)return{level:"高",cls:"high",useBeta:true,text:`信頼度 高（${x.high}G〜）`};
+ if(g>=x.medium)return{level:"中",cls:"mid",useBeta:false,text:x.high==null?`信頼度 中（3000Gまで高未到達）`:`信頼度 中（高は${x.high}G〜）`};
+ return{level:"低",cls:"low",useBeta:false,text:`信頼度 低（中は${x.medium}G〜）`};
+}
+function eventDecision(e){
+ let pg=Math.max(0,(e?.totalG||0)-(session?.start?.g||0)),conf=betaConfidence(session.machine,pg);
+ if(session.useBeta&&conf.useBeta&&e?.betaP4!=null)return{model:"β",p4:e.betaP4,rank:e.betaRank,conf};
+ return{model:"α",p4:e.p4,rank:e.rank,conf};
+}
 function rankInfo(p){
  if(p>=90)return{label:"S",cls:"S",invest:+$("invA").value};
  if(p>=80)return{label:"A+",cls:"Aplus",invest:+$("invA").value};
@@ -259,6 +295,8 @@ function bonusPromotionLimit(g,bb,reg,m,type){
 }
 function rankCard(g,bb,reg,m,cap){
  let p=posterior(m,g,bb,reg),r=rankInfo(p.p4plus),d=nextDown(g,bb,reg,m),inv=cap>0?Math.min(cap,r.invest):r.invest;
+ let pg=session?Math.max(0,g-session.start.g):0, gc=session?.counters?.grape||0, grapeRate=(gc>0&&pg>0)?pg/gc:null;
+ let betaHtml="";if(session?.useBeta){let b=betaPosterior(m,g,bb,reg,pg,gc),br=rankInfo(b.p4plus),bc=betaConfidence(m,pg);betaHtml=`<div class="betaBox"><div class="betaTitle">β P4+（α＋ぶどう）</div><div class="betaP4">${pct(b.p4plus)}　${br.label}</div><div class="betaHint">実戦 ${pg}G / ぶどう ${gc}回${grapeRate?` / 1/${grapeRate.toFixed(2)}`:""}</div><div class="betaConfidence ${bc.cls}">${bc.text}</div></div>`}
  let lower=lowerRankLabel(r.label), bbUp=bonusPromotionLimit(g,bb,reg,m,"BB"), regUp=bonusPromotionLimit(g,bb,reg,m,"REG");
  let battle=d===null?"降格ラインなし":`<b>${d}G</b> ノーボーナスで <b>${r.label} → ${lower||"D"}</b>`;
  let promo;
@@ -268,7 +306,7 @@ function rankCard(g,bb,reg,m,cap){
    let fmt=(x,t)=>x.kind==="ok"?`<b>${x.g}G以内</b>の${t}で <b>${x.to}</b>へ`:`${t}1回では${x.to}に届きません`;
    promo=`<div>${fmt(bbUp,"BB")}</div><div style="margin-top:5px">${fmt(regUp,"REG")}</div>`
  }
- return `<div class="rankbox"><div class="rank ${r.cls}">${r.label}</div><div><div class="muted">P4+</div><div class="p4">${pct(p.p4plus)}</div><div class="note">${SPECS[m].name} 設定4〜6合計事後確率</div></div></div>
+ return `<div class="rankbox"><div class="rank ${r.cls}">${r.label}</div><div><div class="muted">α P4+　<span style="margin-left:8px">🍇 ${grapeRate?`1/${grapeRate.toFixed(2)}`:"—"}</span></div><div class="p4">${pct(p.p4plus)}</div><div class="note">${SPECS[m].name} 設定4〜6合計事後確率</div></div></div>
  <div class="stats">
   <div class="stat"><div class="k">現在データ</div><div class="v">${g}G<br>BB${bb} REG${reg}</div></div>
   <div class="stat"><div class="k">推奨投資上限</div><div class="v">${yen(inv)}</div></div>
@@ -276,14 +314,22 @@ function rankCard(g,bb,reg,m,cap){
   <div class="stat"><div class="k">次の判定</div><div class="v">${d===null?r.label:(lower||"D")}</div></div>
  </div>
  <div class="decisionSummary">あと何G勝負できるか： ${battle}</div>
- <div class="promotionBox"><div class="promotionTitle">ランク昇格</div>${promo}</div>`
+ <div class="promotionBox"><div class="promotionTitle">ランク昇格</div>${promo}</div>${betaHtml}`
 }
 function finance(){if(!session.finance)session.finance={cashInvest:0,carryIn:0,adjust:0,carryMode:null,priorProfit:0,priorCashInvest:0};if(session.finance.priorProfit==null)session.finance.priorProfit=0;if(session.finance.priorCashInvest==null)session.finance.priorCashInvest=0;return session.finance}
-function rawMedals(){if(!session)return 0;let f=finance(),played=session.current.g-session.start.g,m=f.carryIn+f.cashInvest/COIN_YEN-played*GAME_COIN_RATE+f.adjust;for(const e of session.events){if(e.type==="BB")m+=SPECS[session.machine].bbPay;if(e.type==="REG")m+=SPECS[session.machine].regPay}return Math.max(0,m)}
+function counters(){if(!session.counters)session.counters={grape:0,replay:0,cherry:0};return session.counters}
+function playedGames(){return session?Math.max(0,session.current.g-session.start.g):0}
+function bonusMedalsForEvents(events){let m=0;for(const e of events||[]){if(e.type==="BB")m+=SPECS[session.machine].bbPay;if(e.type==="REG")m+=SPECS[session.machine].regPay}return m}
+function estimatedRawMedals(){if(!session)return 0;let f=finance(),m=f.carryIn+f.cashInvest/COIN_YEN-playedGames()*GAME_COIN_RATE+f.adjust+bonusMedalsForEvents(session.events);return Math.max(0,m)}
+function actualRawMedals(){if(!session)return 0;let f=finance(),c=counters(),sp=SPECS[session.machine],m=f.carryIn+f.cashInvest/COIN_YEN-playedGames()*3+c.replay*3+c.grape*sp.grapePay+c.cherry*sp.cherryPay+f.adjust+bonusMedalsForEvents(session.events);return Math.max(0,m)}
+function rawMedals(){return session?.useBeta?actualRawMedals():estimatedRawMedals()}
 function moneyState(){let f=finance(),med=rawMedals(),ret=med*EXCHANGE_YEN,profit=ret-f.cashInvest-f.carryIn*EXCHANGE_YEN,totalCashInvest=(f.priorCashInvest||0)+f.cashInvest,overallProfit=ret-totalCashInvest;return{...f,med,ret,profit,totalCashInvest,overallProfit}}
 function renderBalance(){
  if(!session)return;
- let s=moneyState();
+ let s=moneyState(),actual=!!session.useBeta;
+ $("balanceTitle").innerHTML=`持ちメダル・${actual?"実数":"推定"}収支 <span class="modeBadge ${actual?"actual":"estimate"}">${actual?"小役実数":"推定"}</span>`;
+ $("medalLabel").textContent=actual?"持ちメダル":"推定持ちメダル";$("returnLabel").textContent=actual?"回収額":"推定回収額";$("profitLabel").textContent=`台単体 ${actual?"収支":"推定収支"}`;$("overallLabel").textContent=`前台含む ${actual?"収支":"推定収支"}`;
+ $("balanceNote").textContent=actual?"β併用中：3枚投入、リプレイ+3枚、ぶどう+8枚、チェリー+2枚で実数追跡。数え漏れや稀役は「実際の持ちメダル枚数で修正」で補正できます。":"αのみ：通常時は40Gで50枚消費として推定します。βをONにすると小役カウントによる実数追跡へ切り替わります。";
  $("cashInvestView").textContent=yen(s.cashInvest);
  $("carryInView").textContent=(s.carryIn?((s.carryMode==="approx"||s.carryMode==="auto")?"約":""):"")+Math.round(s.carryIn)+"枚";
  $("liveMedalsView").textContent=Math.round(s.med)+"枚";
@@ -294,15 +340,10 @@ function renderBalance(){
 }
 
 function estimateProfitAt(s,eventCount){
- let f=s.finance||{cashInvest:0,carryIn:0,adjust:0}, medals=f.carryIn+f.cashInvest/COIN_YEN+(f.adjust||0);
- for(let i=0;i<eventCount;i++){
-   let e=s.events[i];
-   medals-=e.gap*GAME_COIN_RATE;
-   if(e.type==="BB")medals+=SPECS[s.machine].bbPay;
-   if(e.type==="REG")medals+=SPECS[s.machine].regPay
- }
- medals=Math.max(0,medals);
- return medals*EXCHANGE_YEN-f.cashInvest-f.carryIn*EXCHANGE_YEN
+ let f=s.finance||{cashInvest:0,carryIn:0,adjust:0}, medals=f.carryIn+f.cashInvest/COIN_YEN+(f.adjust||0), events=(s.events||[]).slice(0,eventCount);
+ if(s.useBeta&&eventCount>0){let e=events[events.length-1],sp=SPECS[s.machine],pg=Math.max(0,e.totalG-s.start.g),cc=e.counters||{grape:0,replay:0,cherry:0};medals+=-pg*3+(cc.replay||0)*3+(cc.grape||0)*sp.grapePay+(cc.cherry||0)*sp.cherryPay;for(const q of events){if(q.type==="BB")medals+=sp.bbPay;if(q.type==="REG")medals+=sp.regPay}}
+ else{for(const e of events){medals-=e.gap*GAME_COIN_RATE;if(e.type==="BB")medals+=SPECS[s.machine].bbPay;if(e.type==="REG")medals+=SPECS[s.machine].regPay}}
+ medals=Math.max(0,medals);return medals*EXCHANGE_YEN-f.cashInvest-f.carryIn*EXCHANGE_YEN
 }
 function graphPointsFromSession(s){
  let pts=[{label:"開始",p4:s.start.p4,g:s.start.g,profit:estimateProfitAt(s,0)}];
@@ -315,7 +356,7 @@ function graphPointsFromLog(log){
  if(sm)pts.push({label:"開始",p4:+sm[1],profit:runningProfit});
  let lines=log.split(/\r?\n/), machineName=(log.match(/^機種：(.+)$/m)||[])[1]||"", spec=Object.values(SPECS).find(x=>x.name===machineName), bbPay=spec?.bbPay||240, regPay=spec?.regPay||96;
  for(const line of lines){
-   let m=line.match(/^\s*(\d+)G\s+(BB|REG|ハマり).*?P4\+\s*([0-9.]+)%/);
+   let m=line.match(/^\s*(\d+)G\s+(BB|REG|ハマり).*?(?:α)?P4\+\s*([0-9.]+)%/);
    if(m){
      let gap=+m[1];runningProfit-=gap*GAME_COIN_RATE*EXCHANGE_YEN;
      if(m[2]==="BB")runningProfit+=bbPay*EXCHANGE_YEN;
@@ -373,7 +414,9 @@ function parseSignedYenLine(log,label){
 function parseProfit(log){
  let v=parseSignedYenLine(log,"累計収支"); if(v!==null)return v;
  v=parseSignedYenLine(log,"収支"); if(v!==null)return v;
+ v=parseSignedYenLine(log,"前台含む収支"); if(v!==null)return v;
  v=parseSignedYenLine(log,"前台含む推定収支"); if(v!==null)return v;
+ v=parseSignedYenLine(log,"台単体収支"); if(v!==null)return v;
  v=parseSignedYenLine(log,"台単体推定収支"); if(v!==null)return v;
  let a=log.match(/^実投資：\s*([\d,]+)円/m),r=log.match(/^回収：\s*([\d,]+)円/m);
  if(a&&r)return +r[1].replace(/,/g,"")-+a[1].replace(/,/g,"");
@@ -485,23 +528,22 @@ function begin(){
    chainId:carry?.chainId||newChainId(),
    startedAt:Date.now(),
    start:{g,bb,reg,p4:p.p4plus,rank:r.label,recInvest:cap>0?Math.min(cap,r.invest):r.invest,userCap:cap},
-   current:{g,bb,reg},events:[],
+   current:{g,bb,reg},events:[],counters:{grape:0,replay:0,cherry:0},useBeta:false,
    finance:{cashInvest:0,carryIn:carry?.medals||0,adjust:0,carryMode:carry?.mode||null,priorProfit:carry?.chainProfit||0,priorCashInvest:carry?.totalCashInvest||0},
    moveMedals:null,moveMode:null,actualInvest:null,actualReturn:null,endReason:"任意終了",memo:""
  };
- pendingCarry=null;localStorage.removeItem("alpha_pending_carry");showSession();saveTemp()
+ pendingCarry=null;localStorage.removeItem("alpha_pending_carry");$("useBeta").checked=false;showSession();saveTemp()
 }
-function showSession(){["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.remove("hidden"));$("initialResultBody").innerHTML=rankCard(session.start.g,session.start.bb,session.start.reg,session.machine,session.start.userCap);renderCurrent();renderHistory();renderBalance();updateCurrentGraph();updateLog();renderPending();if((session.events||[]).some(e=>e.type==="BB"||e.type==="REG"))toggleInitial(true)}
-function addEvent(){let g=+$("eventG").value,t=selectedEvent;if(!g)return;session.current.g+=g;if(t==="BB")session.current.bb++;if(t==="REG")session.current.reg++;let p=posterior(session.machine,session.current.g,session.current.bb,session.current.reg),r=rankInfo(p.p4plus);session.events.push({gap:g,type:t,p4:p.p4plus,rank:r.label,totalG:session.current.g,bb:session.current.bb,reg:session.current.reg});$("eventG").value="";renderCurrent();renderHistory();renderBalance();updateCurrentGraph();if(t==="BB"||t==="REG")toggleInitial(true);updateLog();saveTemp()}
+function showSession(){["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.remove("hidden"));$("initialResultBody").innerHTML=rankCard(session.start.g,session.start.bb,session.start.reg,session.machine,session.start.userCap);renderCounters();renderCurrent();renderHistory();renderBalance();updateCurrentGraph();updateLog();renderPending();if((session.events||[]).some(e=>e.type==="BB"||e.type==="REG"))toggleInitial(true)}
+function addEvent(){let g=+$("eventG").value,t=selectedEvent;if(!g)return;session.current.g+=g;if(t==="BB")session.current.bb++;if(t==="REG")session.current.reg++;let p=posterior(session.machine,session.current.g,session.current.bb,session.current.reg),r=rankInfo(p.p4plus),cc={...counters()},pg=playedGames(),b=session.useBeta?betaPosterior(session.machine,session.current.g,session.current.bb,session.current.reg,pg,cc.grape):null,br=b?rankInfo(b.p4plus):null;session.events.push({gap:g,type:t,p4:p.p4plus,rank:r.label,betaP4:b?.p4plus??null,betaRank:br?.label??null,totalG:session.current.g,bb:session.current.bb,reg:session.current.reg,counters:cc,grapeRate:(cc.grape>0&&pg>0)?pg/cc.grape:null});$("eventG").value="";renderCounters();renderCurrent();renderHistory();renderBalance();updateCurrentGraph();if(t==="BB"||t==="REG")toggleInitial(true);updateLog();saveTemp()}
 function undo(){if(!session?.events.length)return;session.events.pop();let s={g:session.start.g,bb:session.start.bb,reg:session.start.reg};for(const e of session.events){s.g+=e.gap;if(e.type==="BB")s.bb++;if(e.type==="REG")s.reg++}session.current=s;renderCurrent();renderHistory();renderBalance();updateCurrentGraph();if(!(session.events||[]).some(e=>e.type==="BB"||e.type==="REG"))toggleInitial(false);updateLog();saveTemp()}
+function renderCounters(){if(!session)return;let c=counters(),pg=playedGames();$("grapeCount").textContent=c.grape;$("replayCount").textContent=c.replay;$("cherryCount").textContent=c.cherry;$("counterGames").textContent=pg+"G";$("grapeRate").textContent=(c.grape>0&&pg>0)?"1/"+(pg/c.grape).toFixed(2):"—"}
+function changeCounter(name,delta){if(!session)return;let c=counters();c[name]=Math.max(0,(c[name]||0)+delta);renderCounters();renderBalance();updateLog();saveTemp()}
 function renderCurrent(){$("currentResult").innerHTML=rankCard(session.current.g,session.current.bb,session.current.reg,session.machine,session.start.userCap)}
 function medalsAtEventCount(count){
- let f=finance(),med=f.carryIn+f.cashInvest/COIN_YEN+(f.adjust||0);
- for(let i=0;i<count;i++){
-   let e=session.events[i];med-=e.gap*GAME_COIN_RATE;
-   if(e.type==="BB")med+=SPECS[session.machine].bbPay;
-   if(e.type==="REG")med+=SPECS[session.machine].regPay
- }
+ let f=finance(),med=f.carryIn+f.cashInvest/COIN_YEN+(f.adjust||0),events=session.events.slice(0,count),sp=SPECS[session.machine];
+ if(session.useBeta&&count>0){let e=events[events.length-1],pg=Math.max(0,e.totalG-session.start.g),cc=e.counters||{grape:0,replay:0,cherry:0};med+=-pg*3+(cc.replay||0)*3+(cc.grape||0)*sp.grapePay+(cc.cherry||0)*sp.cherryPay;for(const q of events){if(q.type==="BB")med+=sp.bbPay;if(q.type==="REG")med+=sp.regPay}}
+ else{for(const e of events){med-=e.gap*GAME_COIN_RATE;if(e.type==="BB")med+=sp.bbPay;if(e.type==="REG")med+=sp.regPay}}
  return Math.max(0,med)
 }
 function renderHistory(){
@@ -510,8 +552,8 @@ function renderHistory(){
  let f=finance();
  el.innerHTML=session.events.map((e,i)=>{
    let med=medalsAtEventCount(i+1), profit=med*EXCHANGE_YEN-f.cashInvest-f.carryIn*EXCHANGE_YEN, overall=med*EXCHANGE_YEN-((f.priorCashInvest||0)+f.cashInvest);
-   let cls=e.type==="BB"?"bb":e.type==="REG"?"reg":"hama",name=e.type==="HAMA"?"ハマり":e.type;
-   return `<div class="hrow"><div>#${i+1}</div><div><span class="eventBadge ${cls}">${e.gap}G ${name}</span></div><div class="metrics">P4+ ${pct(e.p4)}　<b>${e.rank}</b><br><span class="muted">${e.totalG}G / BB${e.bb} / REG${e.reg}</span><div class="hProfit">推定 ${Math.round(med)}枚 / 収支 ${profit>=0?"+":""}${yen(profit)}${f.priorProfit?`<br><span class="muted">前台込 ${overall>=0?"+":""}${yen(overall)}</span>`:""}</div></div></div>`
+   let cls=e.type==="BB"?"bb":e.type==="REG"?"reg":"hama",name=e.type==="HAMA"?"ハマり":e.type,d=eventDecision(e),gc=e.counters?.grape??0,gr=e.grapeRate?` / 1/${e.grapeRate.toFixed(2)}`:"";
+   return `<div class="hrow"><div>#${i+1}</div><div><span class="eventBadge ${cls}">${e.gap}G ${name}</span></div><div class="metrics"><b>${d.model}</b> ${pct(d.p4)}　<b>${d.rank}</b><br><span class="muted">${e.totalG}G / BB${e.bb} / REG${e.reg} / 🍇${gc}${gr}</span><div class="hProfit">${session.useBeta?"実数":"推定"} ${Math.round(med)}枚 / 収支 ${profit>=0?"+":""}${yen(profit)}${f.priorProfit?`<br><span class="muted">前台込 ${overall>=0?"+":""}${yen(overall)}</span>`:""}</div></div></div>`
  }).join("")
 }
 function changeInvest(v){let f=finance();f.cashInvest=Math.max(0,f.cashInvest+v);$("actualInvest").dataset.manual="0";renderBalance();updateCurrentGraph();updateLog();saveTemp()}
@@ -534,16 +576,17 @@ function makeLog(){
  if(!session)return"";
  let s=session.start,c=session.current,p=posterior(session.machine,c.g,c.bb,c.reg).p4plus,r=rankInfo(p),m=moneyState();
  let startTs=sessionTimestamp("start"),endTs=sessionTimestamp("end"),startLabel=formatDateTimeNoSec(startTs),endLabel=formatDateTimeNoSec(endTs);
- let lines=["【α実戦記録】","",`機種：${SPECS[session.machine].name}`,`実戦開始：${startLabel}`,`実戦終了：${endLabel}`,`開始データ：${s.g}G BB${s.bb} REG${s.reg}`,`開始P4+：${pct(s.p4)}`,`開始ランク：${s.rank}`,`推奨投資額：${yen(s.recInvest)}`];
+ let cc=counters(),pg=playedGames(),gr=(cc.grape>0&&pg>0)?pg/cc.grape:null;
+ let lines=["【α実戦記録】","",`機種：${SPECS[session.machine].name}`,`実戦開始：${startLabel}`,`実戦終了：${endLabel}`,`開始データ：${s.g}G BB${s.bb} REG${s.reg}`,`開始P4+：${pct(s.p4)}`,`開始ランク：${s.rank}`,`β併用：${session.useBeta?"ON":"OFF"}`,`推奨投資額：${yen(s.recInvest)}`];
  if(m.carryIn>0)lines.push(`持込メダル：${m.carryMode==="exact"?"":"約"}${Math.round(m.carryIn)}枚`,`前台までの現金投資：${yen(m.priorCashInvest||0)}`);
  lines.push("","【実戦】");
- if(!session.events.length)lines.push("記録なし");else session.events.forEach(e=>lines.push(`${String(e.gap).padStart(3," ")}G ${(e.type==="HAMA"?"ハマり":e.type).padEnd(4," ")}  P4+ ${pct(e.p4).padStart(5," ")}  ${e.rank}`));
- lines.push("","【推定収支】",`換金換算：1枚18.3円`,`現金投資：${yen(m.cashInvest)}`,`推定持ちメダル：${Math.round(m.med)}枚`,`推定回収額：${yen(m.ret)}`,`台単体推定収支：${m.profit>=0?"+":""}${yen(m.profit)}`,`累計現金投資：${yen(m.totalCashInvest)}`,`前台含む推定収支：${m.overallProfit>=0?"+":""}${yen(m.overallProfit)}`);
+ if(!session.events.length)lines.push("記録なし");else session.events.forEach(e=>{let d=eventDecision(e),gc=e.counters?.grape??0;lines.push(`${String(e.gap).padStart(3," ")}G ${(e.type==="HAMA"?"ハマり":e.type).padEnd(4," ")}  ${d.model}P4+ ${pct(d.p4).padStart(5," ")}  ${d.rank}  🍇${gc}${e.grapeRate?` 1/${e.grapeRate.toFixed(2)}`:""}`)});
+ lines.push("",session.useBeta?"【実数収支】":"【推定収支】",`換金換算：1枚18.3円`,`現金投資：${yen(m.cashInvest)}`,`${session.useBeta?"持ちメダル":"推定持ちメダル"}：${Math.round(m.med)}枚`,`${session.useBeta?"回収額":"推定回収額"}：${yen(m.ret)}`,`${session.useBeta?"台単体収支":"台単体推定収支"}：${m.profit>=0?"+":""}${yen(m.profit)}`,`累計現金投資：${yen(m.totalCashInvest)}`,`${session.useBeta?"前台含む収支":"前台含む推定収支"}：${m.overallProfit>=0?"+":""}${yen(m.overallProfit)}`);
  if(session.moveMedals!=null){
    let mv=session.moveMedals,mvRet=mv*EXCHANGE_YEN,tableMoveProfit=mvRet-m.cashInvest-m.carryIn*EXCHANGE_YEN,chainMoveProfit=mvRet-m.totalCashInvest;
    lines.push(`移動メダル：${session.moveMode==="exact"?"推定":"約"}${Math.round(mv)}枚`,`移動時推定回収額：${yen(mvRet)}`,`移動時台単体推定収支：${tableMoveProfit>=0?"+":""}${yen(tableMoveProfit)}`,`移動時累計推定収支：${chainMoveProfit>=0?"+":""}${yen(chainMoveProfit)}`)
  }
- lines.push("","【終了】",`終了データ：${c.g}G BB${c.bb} REG${c.reg}`,`最終P4+：${pct(p)}`,`最終ランク：${r.label}`);
+ lines.push("","【終了】",`終了データ：${c.g}G BB${c.bb} REG${c.reg}`,`最終P4+：${pct(p)}`,`最終ランク：${r.label}`,`小役：🍇${cc.grape} / 🔁${cc.replay} / 🍒${cc.cherry}`,`ぶどう確率：${gr?`1/${gr.toFixed(2)}`:"—"}`);if(session.useBeta){let b=betaPosterior(session.machine,c.g,c.bb,c.reg,pg,cc.grape),br=rankInfo(b.p4plus);lines.push(`最終βP4+：${pct(b.p4plus)}`,`最終βランク：${br.label}`)}
  let ai=$("actualInvest").value.trim(),ar=$("actualReturn").value.trim(),currentActualInvest=ai?+ai:m.cashInvest;
  if(ai)lines.push(`実投資：${yen(+ai)}`);
  if(ar){
@@ -566,6 +609,7 @@ function saveTemp(){
  session.endTime4=$("endTime4")?.value||null;
  session.actualInvest=$("actualInvest")?.value?+$("actualInvest").value:null;
  session.actualReturn=$("actualReturn")?.value?+$("actualReturn").value:null;
+ session.useBeta=!!$("useBeta")?.checked;session.counters=session.counters||{grape:0,replay:0,cherry:0};
  try{localStorage.setItem("alpha_current_session",JSON.stringify(session));localStorage.setItem("alpha_selected_event",selectedEvent)}catch(e){console.warn("一時保存に失敗",e)}
 }
 function restoreTemp(){
@@ -573,7 +617,7 @@ function restoreTemp(){
  if(!x)return;
  try{
    session=x;
-   session.events=Array.isArray(session.events)?session.events:[];
+   session.events=Array.isArray(session.events)?session.events:[];session.counters=session.counters||{grape:0,replay:0,cherry:0};session.useBeta=!!session.useBeta;
    session.finance=session.finance||{cashInvest:0,carryIn:0,adjust:0,carryMode:null,priorProfit:0,priorCashInvest:0};
    if(session.finance.priorProfit==null)session.finance.priorProfit=0;
    if(session.finance.priorCashInvest==null)session.finance.priorCashInvest=0;
@@ -588,7 +632,7 @@ function restoreTemp(){
    $("startTime4").value=session.startTime4||"";
    $("endTime4").value=session.endTime4||"";
    $("actualInvest").value=session.actualInvest??session.finance.cashInvest??"";
-   $("actualReturn").value=session.actualReturn??"";
+   $("actualReturn").value=session.actualReturn??"";$("useBeta").checked=!!session.useBeta;
    document.querySelectorAll(".eventBtn").forEach(b=>b.classList.toggle("active",b.dataset.event===selectedEvent));
    showSession();
  }catch(e){
@@ -598,7 +642,7 @@ function restoreTemp(){
    toast("一時データの復元に失敗したため初期化しました")
  }
 }
-function resetSession(){session=null;localStorage.removeItem("alpha_current_session");selectedEvent="BB";localStorage.setItem("alpha_selected_event","BB");document.querySelectorAll(".eventBtn").forEach(b=>b.classList.toggle("active",b.dataset.event==="BB"));$("initialResultBody").classList.remove("collapsedBody");$("toggleInitialBtn").textContent="折りたたむ";$("endCardBody").classList.add("collapsedBody");$("toggleEndBtn").textContent="開く";["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.add("hidden"));["compact","startG","startBB","startREG","userCap","eventG","actualInvest","actualReturn","playDate","startTime4","endTime4","memo"].forEach(x=>$(x).value="");window.scrollTo({top:0,behavior:"smooth"})}
+function resetSession(){session=null;localStorage.removeItem("alpha_current_session");$("useBeta").checked=false;selectedEvent="BB";localStorage.setItem("alpha_selected_event","BB");document.querySelectorAll(".eventBtn").forEach(b=>b.classList.toggle("active",b.dataset.event==="BB"));$("initialResultBody").classList.remove("collapsedBody");$("toggleInitialBtn").textContent="折りたたむ";$("endCardBody").classList.add("collapsedBody");$("toggleEndBtn").textContent="開く";["initialResult","playCard","balanceCard","historyCard","endCard"].forEach(x=>$(x).classList.add("hidden"));["compact","startG","startBB","startREG","userCap","eventG","actualInvest","actualReturn","playDate","startTime4","endTime4","memo"].forEach(x=>$(x).value="");window.scrollTo({top:0,behavior:"smooth"})}
 function saveHistory(){
  if(!session)return;
  let h=JSON.parse(localStorage.getItem("alpha_history")||"[]"),log=makeLog(),m=moneyState(),actualReturn=$("actualReturn").value.trim();
@@ -618,7 +662,7 @@ function parseLogSummary(log){
  const sp=(log.match(/^開始P4\+：\s*([0-9.]+)%/m)||[])[1], sr=(log.match(/^開始ランク：\s*(.+)$/m)||[])[1];
  const fp=(log.match(/^最終P4\+：\s*([0-9.]+)%/m)||[])[1], fr=(log.match(/^最終ランク：\s*(.+)$/m)||[])[1];
  const ai=(log.match(/^実投資：\s*([\d,]+)円/m)||log.match(/^現金投資：\s*([\d,]+)円/m)||[])[1];
- const ar=(log.match(/^回収：\s*([\d,]+)円/m)||log.match(/^移動時推定回収額：\s*([\d,]+)円/m)||log.match(/^推定回収額：\s*([\d,]+)円/m)||[])[1];
+ const ar=(log.match(/^回収：\s*([\d,]+)円/m)||log.match(/^回収額：\s*([\d,]+)円/m)||log.match(/^移動時推定回収額：\s*([\d,]+)円/m)||log.match(/^推定回収額：\s*([\d,]+)円/m)||[])[1];
  const move=(log.match(/^移動メダル：(.+)$/m)||[])[1]||null;
  const pr=parseTableProfit(log);
  const cumulative=parseProfit(log);
@@ -681,6 +725,8 @@ $("carryExactBtn").onclick=()=>carry("exact");$("carryApproxBtn").onclick=()=>ca
 $("finishBtn").onclick=finish;$("copyBtn").onclick=copyLog;$("saveHistoryBtn").onclick=saveHistory;$("newBtn").onclick=resetSession;$("clearHistoryBtn").onclick=()=>{if(confirm("保存済み履歴を全削除しますか？")){localStorage.removeItem("alpha_history");renderSaved()}};
 ["endReason","actualReturn","memo"].forEach(id=>$(id).addEventListener("input",()=>{updateLog();saveTemp()}));
 $("actualInvest").addEventListener("input",()=>{$("actualInvest").dataset.manual="1";updateLog();saveTemp()});
+document.querySelectorAll("[data-counter]").forEach(btn=>btn.onclick=()=>changeCounter(btn.dataset.counter,+btn.dataset.delta));
+$("useBeta").addEventListener("change",()=>{if(!session)return;session.useBeta=$("useBeta").checked;renderBalance();renderCurrent();renderHistory();updateCurrentGraph();updateLog();saveTemp();toast(session.useBeta?"βモデル＋実数追跡をON":"αモデル＋推定追跡に戻しました")});
 document.querySelectorAll(".eventBtn").forEach(btn=>btn.onclick=()=>{
  selectedEvent=btn.dataset.event;
  localStorage.setItem("alpha_selected_event",selectedEvent);
